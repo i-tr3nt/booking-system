@@ -166,12 +166,6 @@ app.get('/export-events', async (req, res) => {
                 res.send(csv);
                 break;
 
-            case 'sheets':
-                // Redirect to Google Sheets template with data
-                const template = 'https://docs.google.com/spreadsheets/d/1naIJg-0NRCu1uH7v__7tYWXtk5j8xDcEFChyZkQU3es/copy';
-                res.redirect(template);
-                break;
-
             default:
                 res.status(400).send('Invalid export format');
         }
