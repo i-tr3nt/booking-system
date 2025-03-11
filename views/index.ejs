@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Booking System</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">Equipment Booking System</h1>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">Home</a>
+                <a href="/events" class="nav-link">Events</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <% if (showMessage && locals.success) { %>
+            <div class="message success" id="successMessage">
+                Booking submitted successfully!
+                <button onclick="this.parentElement.style.display='none'" class="close-btn">&times;</button>
+            </div>
+        <% } %>
+        <% if (showMessage && locals.error) { %>
+            <div class="message error" id="errorMessage">
+                Error submitting booking. Please try again.
+                <button onclick="this.parentElement.style.display='none'" class="close-btn">&times;</button>
+            </div>
+        <% } %>
+
+        <div class="booking-form">
+            <h2>New Booking</h2>
+            <form id="bookingForm" action="/submit-booking" method="POST">
+                <div class="form-group">
+                    <label for="projectName">Project Name:</label>
+                    <input type="text" id="projectName" name="projectName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="bookedBy">Booked By:</label>
+                    <input type="text" id="bookedBy" name="bookedBy" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventDate">Event Date:</label>
+                    <input type="date" id="eventDate" name="eventDate" required min="<%= new Date().toISOString().split('T')[0] %>">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="startTime">Start Time:</label>
+                        <input type="time" id="startTime" name="startTime" required>
+                    </div>
+
+                    <div class="form-group half">
+                        <label for="endTime">End Time:</label>
+                        <input type="time" id="endTime" name="endTime" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="equipment">Equipment Required:</label>
+                    <select id="equipment" name="equipment" required>
+                        <option value="">Select Equipment</option>
+                        <option value="Gazebo only">Gazebo only</option>
+                        <option value="Projector only">Projector only</option>
+                        <option value="Gazebo + Projector">Gazebo + Projector</option>
+                    </select>
+                </div>
+
+                <div id="availabilityMessage" class="message" style="display: none;"></div>
+                <button type="submit" class="submit-btn">Submit Booking Request</button>
+            </form>
+        </div>
+
+        <div class="recent-bookings">
+            <h2>Upcoming Events</h2>
+            <% if (upcomingBookings && upcomingBookings.length > 0) { %>
+                <div class="bookings-grid">
+                    <% upcomingBookings.forEach(booking => { %>
+                        <div class="booking-card">
+                            <h3><%= booking.projectName %></h3>
+                            <p><strong>Booked By:</strong> <%= booking.bookedBy %></p>
+                            <p><strong>Date:</strong> <%= booking.eventDate %></p>
+                            <p><strong>Time:</strong> <%= booking.startTime %> - <%= booking.endTime %></p>
+                            <p><strong>Equipment:</strong> <%= booking.equipment %></p>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <p>No upcoming events</p>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        // Check availability before submission
+        const form = document.getElementById('bookingForm');
+        const availabilityMessage = document.getElementById('availabilityMessage');
+
+        async function checkAvailability() {
+            const eventDate = document.getElementById('eventDate').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (!eventDate || !startTime || !endTime) return;
+
+            try {
+                const response = await fetch(`/check-availability?eventDate=${eventDate}&startTime=${startTime}&endTime=${endTime}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    availabilityMessage.textContent = 'Error checking availability';
+                    availabilityMessage.style.display = 'block';
+                    availabilityMessage.className = 'message error';
+                    return false;
+                }
+
+                if (!data.available) {
+                    availabilityMessage.textContent = 'This time slot is already booked';
+                    availabilityMessage.style.display = 'block';
+                    availabilityMessage.className = 'message error';
+                    return false;
+                }
+
+                availabilityMessage.textContent = 'Time slot is available';
+                availabilityMessage.style.display = 'block';
+                availabilityMessage.className = 'message success';
+                return true;
+            } catch (error) {
+                console.error('Error:', error);
+                return false;
+            }
+        }
+
+        // Add event listeners for date/time changes
+        ['eventDate', 'startTime', 'endTime'].forEach(id => {
+            document.getElementById(id).addEventListener('change', checkAvailability);
+        });
+
+        // Check availability before form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const available = await checkAvailability();
+            if (available) {
+                form.submit();
+            }
+        });
+
+        // Auto-hide success/error messages after 5 seconds
+        const messages = document.querySelectorAll('.message.success, .message.error');
+        messages.forEach(message => {
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 5000);
+        });
+    </script>
+</body>
+</html> 

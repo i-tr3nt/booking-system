@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - Equipment Booking System</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">Equipment Booking System</h1>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/events" class="nav-link active">Events</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="events-header">
+            <h2>Scheduled Events</h2>
+            <div class="header-actions">
+                <div class="search-filters">
+                    <input type="text" id="searchText" placeholder="Search by project or booker..." class="search-input">
+                    <input type="date" id="searchDate" class="search-input">
+                    <button onclick="resetFilters()" class="reset-btn">Reset Filters</button>
+                </div>
+                <div class="export-dropdown">
+                    <button class="export-btn" onclick="toggleExportMenu()">
+                        <svg class="export-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Export
+                        <svg class="dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div class="export-menu" id="exportMenu">
+                        <a href="/export-events?format=excel" class="export-option">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21.17 3.25H2.83c-.46 0-.83.37-.83.82v15.85c0 .45.37.82.83.82h18.34c.46 0 .83-.37.83-.82V4.07c0-.45-.37-.82-.83-.82zm-.83 15.85H3.67V4.89h16.67v14.21z"/>
+                                <path d="M17.5 8.5l-3.5 8.5h-1.53l-2.97-8.5h1.66l2.13 6.77 2.13-6.77h1.58z"/>
+                            </svg>
+                            Excel (.xlsx)
+                        </a>
+                        <a href="/export-events?format=csv" class="export-option">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                            </svg>
+                            CSV
+                        </a>
+                        <a href="/export-events?format=sheets" class="export-option">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19.07 3.006h-14c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-14c0-1.1-.9-2-2-2zm-.5 16h-13v-13h13v13z"/>
+                                <path d="M7 7h10v2H7zM7 11h10v2H7zM7 15h10v2H7z"/>
+                            </svg>
+                            Google Sheets
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="events-table-container">
+            <table class="events-table">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Booked By</th>
+                        <th>Event Date</th>
+                        <th>Time</th>
+                        <th>Equipment</th>
+                    </tr>
+                </thead>
+                <tbody id="eventsTableBody">
+                    <% events.forEach(event => { %>
+                        <tr>
+                            <td><%= event.projectName %></td>
+                            <td><%= event.bookedBy %></td>
+                            <td><%= event.eventDate %></td>
+                            <td><%= event.startTime %> - <%= event.endTime %></td>
+                            <td><%= event.equipment %></td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const searchText = document.getElementById('searchText');
+        const searchDate = document.getElementById('searchDate');
+        const tableBody = document.getElementById('eventsTableBody');
+        const originalRows = Array.from(tableBody.getElementsByTagName('tr'));
+        const exportMenu = document.getElementById('exportMenu');
+
+        function toggleExportMenu() {
+            exportMenu.classList.toggle('show');
+        }
+
+        // Close export menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.export-dropdown')) {
+                exportMenu.classList.remove('show');
+            }
+        });
+
+        function filterTable() {
+            const text = searchText.value.toLowerCase();
+            const date = searchDate.value;
+
+            const filteredRows = originalRows.filter(row => {
+                const cells = Array.from(row.getElementsByTagName('td'));
+                const matchesText = text === '' || 
+                    cells[0].textContent.toLowerCase().includes(text) || // Project Name
+                    cells[1].textContent.toLowerCase().includes(text);   // Booked By
+                const matchesDate = date === '' || cells[2].textContent === date;
+                
+                return matchesText && matchesDate;
+            });
+
+            tableBody.innerHTML = '';
+            filteredRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
+        }
+
+        function resetFilters() {
+            searchText.value = '';
+            searchDate.value = '';
+            tableBody.innerHTML = '';
+            originalRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
+        }
+
+        searchText.addEventListener('input', filterTable);
+        searchDate.addEventListener('change', filterTable);
+    </script>
+</body>
+</html> 
