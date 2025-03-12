@@ -19,7 +19,7 @@
 
     <div class="container">
         <div class="events-header">
-            <h2>Scheduled Events</h2>
+            <h2>Events</h2>
             <div class="header-actions">
                 <div class="search-filters">
                     <input type="text" id="searchText" placeholder="Search by project or booker..." class="search-input">
@@ -55,38 +55,75 @@
             </div>
         </div>
 
-        <div class="events-table-container">
-            <table class="events-table">
-                <thead>
-                    <tr>
-                        <th>Project Name</th>
-                        <th>Booked By</th>
-                        <th>Event Date</th>
-                        <th>Time</th>
-                        <th>Equipment</th>
-                    </tr>
-                </thead>
-                <tbody id="eventsTableBody">
-                    <% events.forEach(event => { %>
+        <!-- Upcoming Events Section -->
+        <div class="events-section">
+            <h3>Upcoming Events</h3>
+            <div class="events-table-container">
+                <table class="events-table">
+                    <thead>
                         <tr>
-                            <td><%= event.projectName %></td>
-                            <td><%= event.bookedBy %></td>
-                            <td><%= event.eventDate %></td>
-                            <td><%= event.startTime %> - <%= event.endTime %></td>
-                            <td><%= event.equipment %></td>
+                            <th>Project Name</th>
+                            <th>Booked By</th>
+                            <th>Event Date</th>
+                            <th>Time</th>
+                            <th>Equipment</th>
                         </tr>
-                    <% }); %>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="upcomingEventsTableBody">
+                        <% upcomingEvents.forEach(event => { %>
+                            <tr>
+                                <td><%= event.projectName %></td>
+                                <td><%= event.bookedBy %></td>
+                                <td><%= event.eventDate %></td>
+                                <td><%= event.startTime %> - <%= event.endTime %></td>
+                                <td><%= event.equipment %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Past Events Section -->
+        <div class="events-section">
+            <h3>Event History</h3>
+            <div class="events-table-container">
+                <table class="events-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Booked By</th>
+                            <th>Event Date</th>
+                            <th>Time</th>
+                            <th>Equipment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pastEventsTableBody">
+                        <% pastEvents.forEach(event => { %>
+                            <tr>
+                                <td><%= event.projectName %></td>
+                                <td><%= event.bookedBy %></td>
+                                <td><%= event.eventDate %></td>
+                                <td><%= event.startTime %> - <%= event.endTime %></td>
+                                <td><%= event.equipment %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
         const searchText = document.getElementById('searchText');
         const searchDate = document.getElementById('searchDate');
-        const tableBody = document.getElementById('eventsTableBody');
-        const originalRows = Array.from(tableBody.getElementsByTagName('tr'));
+        const upcomingTableBody = document.getElementById('upcomingEventsTableBody');
+        const pastTableBody = document.getElementById('pastEventsTableBody');
         const exportMenu = document.getElementById('exportMenu');
+        
+        // Store original rows for both tables
+        const originalUpcomingRows = Array.from(upcomingTableBody.getElementsByTagName('tr'));
+        const originalPastRows = Array.from(pastTableBody.getElementsByTagName('tr'));
 
         function toggleExportMenu() {
             exportMenu.classList.toggle('show');
@@ -103,25 +140,36 @@
             const text = searchText.value.toLowerCase();
             const date = searchDate.value;
 
-            const filteredRows = originalRows.filter(row => {
-                const cells = Array.from(row.getElementsByTagName('td'));
-                const matchesText = text === '' || 
-                    cells[0].textContent.toLowerCase().includes(text) || // Project Name
-                    cells[1].textContent.toLowerCase().includes(text);   // Booked By
-                const matchesDate = date === '' || cells[2].textContent === date;
-                
-                return matchesText && matchesDate;
-            });
+            function filterRows(rows, tableBody) {
+                const filteredRows = rows.filter(row => {
+                    const cells = Array.from(row.getElementsByTagName('td'));
+                    const matchesText = text === '' || 
+                        cells[0].textContent.toLowerCase().includes(text) || // Project Name
+                        cells[1].textContent.toLowerCase().includes(text);   // Booked By
+                    const matchesDate = date === '' || cells[2].textContent === date;
+                    
+                    return matchesText && matchesDate;
+                });
 
-            tableBody.innerHTML = '';
-            filteredRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
+                tableBody.innerHTML = '';
+                filteredRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
+            }
+
+            // Filter both tables
+            filterRows(originalUpcomingRows, upcomingTableBody);
+            filterRows(originalPastRows, pastTableBody);
         }
 
         function resetFilters() {
             searchText.value = '';
             searchDate.value = '';
-            tableBody.innerHTML = '';
-            originalRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
+            
+            // Reset both tables
+            upcomingTableBody.innerHTML = '';
+            originalUpcomingRows.forEach(row => upcomingTableBody.appendChild(row.cloneNode(true)));
+            
+            pastTableBody.innerHTML = '';
+            originalPastRows.forEach(row => pastTableBody.appendChild(row.cloneNode(true)));
         }
 
         searchText.addEventListener('input', filterTable);

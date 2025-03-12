@@ -70,50 +70,93 @@ app.get('/', async (req, res) => {
 
 // Events page route
 app.get('/events', (req, res) => {
-    db.all(`
-        SELECT * FROM bookings 
-        WHERE date(eventDate) >= date('now') 
-        ORDER BY eventDate ASC, startTime ASC
-    `, [], (err, rows) => {
-        if (err) {
-            console.error('Error fetching events:', err);
-            res.render('events', { events: [] });
-        } else {
-            // Format dates for display
-            const formattedEvents = rows.map(event => ({
-                ...event,
-                eventDate: moment(event.eventDate).format('DD/MM/YYYY'),
-                startTime: moment(event.startTime, 'HH:mm').format('HH:mm'),
-                endTime: moment(event.endTime, 'HH:mm').format('HH:mm')
-            }));
-            res.render('events', { events: formattedEvents });
-        }
-    });
-});
-
-// Export events route
-app.get('/export-events', async (req, res) => {
-    try {
-        // Get data from database
-        const rows = await new Promise((resolve, reject) => {
+    const promises = [
+        // Get upcoming events
+        new Promise((resolve, reject) => {
             db.all(`
-                SELECT projectName, bookedBy, eventDate, startTime, endTime, equipment
-                FROM bookings 
-                WHERE date(eventDate) >= date('now')
+                SELECT * FROM bookings 
+                WHERE date(eventDate) >= date('now') 
                 ORDER BY eventDate ASC, startTime ASC
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
             });
+        }),
+        // Get past events
+        new Promise((resolve, reject) => {
+            db.all(`
+                SELECT * FROM bookings 
+                WHERE date(eventDate) < date('now') 
+                ORDER BY eventDate DESC, startTime DESC
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        })
+    ];
+
+    Promise.all(promises)
+        .then(([upcomingRows, pastRows]) => {
+            // Format dates for display
+            const formatEvents = (events) => events.map(event => ({
+                ...event,
+                eventDate: moment(event.eventDate).format('DD/MM/YYYY'),
+                startTime: moment(event.startTime, 'HH:mm').format('HH:mm'),
+                endTime: moment(event.endTime, 'HH:mm').format('HH:mm')
+            }));
+
+            res.render('events', {
+                upcomingEvents: formatEvents(upcomingRows),
+                pastEvents: formatEvents(pastRows)
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching events:', err);
+            res.render('events', { upcomingEvents: [], pastEvents: [] });
         });
+});
+
+// Export events route
+app.get('/export-events', async (req, res) => {
+    try {
+        // Get both upcoming and past events
+        const [upcomingRows, pastRows] = await Promise.all([
+            // Get upcoming events
+            new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT projectName, bookedBy, eventDate, startTime, endTime, equipment
+                    FROM bookings 
+                    WHERE date(eventDate) >= date('now')
+                    ORDER BY eventDate ASC, startTime ASC
+                `, [], (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows);
+                });
+            }),
+            // Get past events
+            new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT projectName, bookedBy, eventDate, startTime, endTime, equipment
+                    FROM bookings 
+                    WHERE date(eventDate) < date('now')
+                    ORDER BY eventDate DESC, startTime DESC
+                `, [], (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows);
+                });
+            })
+        ]);
 
         // Format dates
-        const formattedRows = rows.map(row => ({
+        const formatRows = (rows) => rows.map(row => ({
             ...row,
             eventDate: moment(row.eventDate).format('DD/MM/YYYY'),
             startTime: moment(row.startTime, 'HH:mm').format('HH:mm'),
             endTime: moment(row.endTime, 'HH:mm').format('HH:mm')
         }));
+
+        const formattedUpcomingRows = formatRows(upcomingRows);
+        const formattedPastRows = formatRows(pastRows);
 
         const format = req.query.format || 'excel';
 
@@ -121,10 +164,10 @@ app.get('/export-events', async (req, res) => {
             case 'excel':
                 // Create Excel workbook
                 const workbook = new ExcelJS.Workbook();
-                const worksheet = workbook.addWorksheet('Scheduled Events');
-
-                // Add headers with styling
-                worksheet.columns = [
+                
+                // Add Upcoming Events worksheet
+                const upcomingWorksheet = workbook.addWorksheet('Upcoming Events');
+                upcomingWorksheet.columns = [
                     { header: 'Project Name', key: 'projectName', width: 30 },
                     { header: 'Booked By', key: 'bookedBy', width: 20 },
                     { header: 'Event Date', key: 'eventDate', width: 15 },
@@ -133,20 +176,42 @@ app.get('/export-events', async (req, res) => {
                     { header: 'Equipment', key: 'equipment', width: 20 }
                 ];
 
-                // Style header row
-                worksheet.getRow(1).font = { bold: true };
-                worksheet.getRow(1).fill = {
+                // Style header row for upcoming events
+                upcomingWorksheet.getRow(1).font = { bold: true };
+                upcomingWorksheet.getRow(1).fill = {
                     type: 'pattern',
                     pattern: 'solid',
                     fgColor: { argb: 'FFE5E7EB' }
                 };
 
-                // Add data rows
-                worksheet.addRows(formattedRows);
+                // Add upcoming events data
+                upcomingWorksheet.addRows(formattedUpcomingRows);
+
+                // Add Past Events worksheet
+                const pastWorksheet = workbook.addWorksheet('Event History');
+                pastWorksheet.columns = [
+                    { header: 'Project Name', key: 'projectName', width: 30 },
+                    { header: 'Booked By', key: 'bookedBy', width: 20 },
+                    { header: 'Event Date', key: 'eventDate', width: 15 },
+                    { header: 'Start Time', key: 'startTime', width: 12 },
+                    { header: 'End Time', key: 'endTime', width: 12 },
+                    { header: 'Equipment', key: 'equipment', width: 20 }
+                ];
+
+                // Style header row for past events
+                pastWorksheet.getRow(1).font = { bold: true };
+                pastWorksheet.getRow(1).fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE5E7EB' }
+                };
+
+                // Add past events data
+                pastWorksheet.addRows(formattedPastRows);
 
                 // Set response headers
                 res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-                res.setHeader('Content-Disposition', 'attachment; filename=scheduled-events.xlsx');
+                res.setHeader('Content-Disposition', 'attachment; filename=events.xlsx');
 
                 // Write to response
                 await workbook.xlsx.write(res);
@@ -154,13 +219,23 @@ app.get('/export-events', async (req, res) => {
                 break;
 
             case 'csv':
-                // Convert to CSV
+                // Prepare CSV data with sections
                 const fields = ['projectName', 'bookedBy', 'eventDate', 'startTime', 'endTime', 'equipment'];
-                const csv = parse(formattedRows, { fields });
+                
+                // Create section headers and combine data
+                const csvData = [
+                    { projectName: '=== UPCOMING EVENTS ===' },
+                    ...formattedUpcomingRows,
+                    { projectName: '' }, // Empty row as separator
+                    { projectName: '=== EVENT HISTORY ===' },
+                    ...formattedPastRows
+                ];
+
+                const csv = parse(csvData, { fields });
 
                 // Set response headers
                 res.setHeader('Content-Type', 'text/csv');
-                res.setHeader('Content-Disposition', 'attachment; filename=scheduled-events.csv');
+                res.setHeader('Content-Disposition', 'attachment; filename=events.csv');
 
                 // Send CSV
                 res.send(csv);
@@ -196,22 +271,64 @@ app.post('/submit-booking', (req, res) => {
 
 // Check for double bookings
 app.get('/check-availability', (req, res) => {
-    const { eventDate, startTime, endTime } = req.query;
+    const { eventDate, startTime, endTime, equipment } = req.query;
     
+    // First, check if the requested equipment is available
     db.all(`
         SELECT * FROM bookings 
         WHERE eventDate = ? 
+        AND equipment = ?
         AND (
             (startTime <= ? AND endTime > ?) OR
             (startTime < ? AND endTime >= ?) OR
             (startTime >= ? AND endTime <= ?)
         )
-    `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime], 
+    `, [eventDate, equipment, startTime, startTime, endTime, endTime, startTime, endTime], 
     (err, rows) => {
         if (err) {
             res.json({ error: 'Error checking availability' });
+            return;
+        }
+
+        // If the equipment is available, return success
+        if (rows.length === 0) {
+            res.json({ available: true });
+            return;
+        }
+
+        // If a projector is requested and not available, find available projectors
+        if (equipment.includes('Projector') && !equipment.includes('Gazebo')) {
+            db.all(`
+                SELECT DISTINCT equipment
+                FROM bookings 
+                WHERE eventDate = ? 
+                AND equipment LIKE 'Projector%'
+                AND (
+                    (startTime <= ? AND endTime > ?) OR
+                    (startTime < ? AND endTime >= ?) OR
+                    (startTime >= ? AND endTime <= ?)
+                )
+            `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime],
+            (err, bookedProjectors) => {
+                if (err) {
+                    res.json({ available: false });
+                    return;
+                }
+
+                // Create array of all projectors
+                const allProjectors = ['Projector 1', 'Projector 2', 'Projector 3', 'Projector 4'];
+                
+                // Filter out booked projectors
+                const bookedProjectorNames = bookedProjectors.map(row => row.equipment);
+                const availableProjectors = allProjectors.filter(p => !bookedProjectorNames.includes(p));
+
+                res.json({
+                    available: false,
+                    availableProjectors: availableProjectors
+                });
+            });
         } else {
-            res.json({ available: rows.length === 0, existingBookings: rows });
+            res.json({ available: false });
         }
     });
 });
