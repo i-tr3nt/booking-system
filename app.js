@@ -5,7 +5,6 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 const { parse } = require('json2csv');
 const nodemailer = require('nodemailer');
-require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,8 +13,8 @@ const port = process.env.PORT || 3000;
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: 'your-email@gmail.com', // Replace with your Gmail address
+        pass: 'your-app-password' // Replace with your Gmail app password
     }
 });
 
@@ -31,13 +30,13 @@ async function sendBookingNotification(booking) {
             <li><strong>Time:</strong> ${moment(booking.startTime, 'HH:mm').format('HH:mm')} - ${moment(booking.endTime, 'HH:mm').format('HH:mm')}</li>
             <li><strong>Equipment:</strong> ${booking.equipment}</li>
         </ul>
-        <p>This is an automated notification. Please do not reply to this email.</p>
+        <p>This booking was submitted on ${moment(booking.dateSubmitted).format('DD/MM/YYYY [at] HH:mm')}</p>
     `;
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: 'your-email@gmail.com', // Replace with your Gmail address
         to: 'takudzatrenttaderera@gmail.com',
-        subject: 'New Equipment Booking Notification',
+        subject: `New Equipment Booking: ${booking.projectName}`,
         html: emailTemplate
     };
 
@@ -299,7 +298,7 @@ app.post('/submit-booking', (req, res) => {
     db.run(`
         INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], async function(err) {
+    `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], function(err) {
         if (err) {
             console.error('Error submitting booking:', err);
             res.redirect('/?error=true');
@@ -307,14 +306,17 @@ app.post('/submit-booking', (req, res) => {
             console.log('Booking submitted successfully');
             
             // Send email notification
-            await sendBookingNotification({
+            const booking = {
+                id: this.lastID,
                 projectName,
                 bookedBy,
                 eventDate,
                 startTime,
                 endTime,
-                equipment
-            });
+                equipment,
+                dateSubmitted
+            };
+            sendBookingNotification(booking);
             
             res.redirect('/?success=true');
         }
