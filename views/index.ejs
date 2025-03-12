@@ -66,12 +66,17 @@
                     <select id="equipment" name="equipment" required>
                         <option value="">Select Equipment</option>
                         <option value="Gazebo only">Gazebo only</option>
-                        <option value="Projector only">Projector only</option>
-                        <option value="Gazebo + Projector">Gazebo + Projector</option>
+                        <option value="Projector 1">Projector 1</option>
+                        <option value="Projector 2">Projector 2</option>
+                        <option value="Projector 3">Projector 3</option>
+                        <option value="Projector 4">Projector 4</option>
+                        <option value="Gazebo+Projector 4">Gazebo+Projector 4</option>
+                        <option value="Zoom Video Conferencing">Zoom Video Conferencing</option>
                     </select>
                 </div>
 
                 <div id="availabilityMessage" class="message" style="display: none;"></div>
+                <div id="alternativeProjectors" class="message success" style="display: none;"></div>
                 <button type="submit" class="submit-btn">Submit Booking Request</button>
             </form>
         </div>
@@ -100,35 +105,47 @@
         // Check availability before submission
         const form = document.getElementById('bookingForm');
         const availabilityMessage = document.getElementById('availabilityMessage');
+        const alternativeProjectors = document.getElementById('alternativeProjectors');
+        const equipmentSelect = document.getElementById('equipment');
 
         async function checkAvailability() {
             const eventDate = document.getElementById('eventDate').value;
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
+            const equipment = equipmentSelect.value;
 
-            if (!eventDate || !startTime || !endTime) return;
+            if (!eventDate || !startTime || !endTime || !equipment) return;
 
             try {
-                const response = await fetch(`/check-availability?eventDate=${eventDate}&startTime=${startTime}&endTime=${endTime}`);
+                const response = await fetch(`/check-availability?eventDate=${eventDate}&startTime=${startTime}&endTime=${endTime}&equipment=${equipment}`);
                 const data = await response.json();
 
                 if (data.error) {
                     availabilityMessage.textContent = 'Error checking availability';
                     availabilityMessage.style.display = 'block';
                     availabilityMessage.className = 'message error';
+                    alternativeProjectors.style.display = 'none';
                     return false;
                 }
 
                 if (!data.available) {
-                    availabilityMessage.textContent = 'This time slot is already booked';
+                    if (equipment.includes('Projector') && data.availableProjectors && data.availableProjectors.length > 0) {
+                        availabilityMessage.textContent = 'This projector is already booked for this time slot.';
+                        alternativeProjectors.textContent = 'Available projectors: ' + data.availableProjectors.join(', ');
+                        alternativeProjectors.style.display = 'block';
+                    } else {
+                        availabilityMessage.textContent = 'This equipment is already booked for this time slot';
+                        alternativeProjectors.style.display = 'none';
+                    }
                     availabilityMessage.style.display = 'block';
                     availabilityMessage.className = 'message error';
                     return false;
                 }
 
-                availabilityMessage.textContent = 'Time slot is available';
+                availabilityMessage.textContent = 'Equipment is available for this time slot';
                 availabilityMessage.style.display = 'block';
                 availabilityMessage.className = 'message success';
+                alternativeProjectors.style.display = 'none';
                 return true;
             } catch (error) {
                 console.error('Error:', error);
@@ -136,8 +153,8 @@
             }
         }
 
-        // Add event listeners for date/time changes
-        ['eventDate', 'startTime', 'endTime'].forEach(id => {
+        // Add event listeners for date/time/equipment changes
+        ['eventDate', 'startTime', 'endTime', 'equipment'].forEach(id => {
             document.getElementById(id).addEventListener('change', checkAvailability);
         });
 
