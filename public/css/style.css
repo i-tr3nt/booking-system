@@ -496,8 +496,19 @@ select:focus {
     margin-top: 1rem;
 }
 
-#dateRangeInput .form-group {
-    margin-bottom: 1rem;
+#dateRangeInput .form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0;
+}
+
+#dateRangeInput .form-group.half {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+#dateRangeInput input[type="date"] {
+    width: 100%;
 }
 
 #dateRangeInput .form-group:last-child {

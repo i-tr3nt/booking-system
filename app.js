@@ -402,6 +402,37 @@ app.get('/check-availability', (req, res) => {
                     availableProjectors: availableProjectors
                 });
             });
+        } else if (equipment === 'Gazebo+Projector 4+Zoom VC') {
+            // Check availability for all components
+            db.all(`
+                SELECT equipment
+                FROM bookings 
+                WHERE eventDate = ? 
+                AND (
+                    equipment = 'Gazebo only' OR
+                    equipment = 'Projector 4' OR
+                    equipment = 'Zoom Video Conferencing' OR
+                    equipment = 'Gazebo+Projector 4' OR
+                    equipment = 'Gazebo+Projector 4+Zoom VC'
+                )
+                AND (
+                    (startTime <= ? AND endTime > ?) OR
+                    (startTime < ? AND endTime >= ?) OR
+                    (startTime >= ? AND endTime <= ?)
+                )
+            `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime],
+            (err, bookedEquipment) => {
+                if (err) {
+                    res.json({ available: false });
+                    return;
+                }
+
+                if (bookedEquipment.length === 0) {
+                    res.json({ available: true });
+                } else {
+                    res.json({ available: false });
+                }
+            });
         } else {
             res.json({ available: false });
         }
