@@ -45,8 +45,35 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="eventDate">Event Date:</label>
-                    <input type="date" id="eventDate" name="eventDate" required min="<%= new Date().toISOString().split('T')[0] %>">
+                    <label>Booking Type:</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="bookingType" value="single" checked onchange="toggleDateInputs()">
+                            Single Day
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="bookingType" value="range" onchange="toggleDateInputs()">
+                            Date Range
+                        </label>
+                    </div>
+                </div>
+
+                <div id="singleDateInput">
+                    <div class="form-group">
+                        <label for="eventDate">Event Date:</label>
+                        <input type="date" id="eventDate" name="eventDate" required min="<%= new Date().toISOString().split('T')[0] %>">
+                    </div>
+                </div>
+
+                <div id="dateRangeInput" style="display: none;">
+                    <div class="form-group">
+                        <label for="startDate">Start Date:</label>
+                        <input type="date" id="startDate" name="startDate" min="<%= new Date().toISOString().split('T')[0] %>">
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">End Date:</label>
+                        <input type="date" id="endDate" name="endDate" min="<%= new Date().toISOString().split('T')[0] %>">
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -109,58 +136,125 @@
         const equipmentSelect = document.getElementById('equipment');
 
         async function checkAvailability() {
-            const eventDate = document.getElementById('eventDate').value;
+            const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
             const equipment = equipmentSelect.value;
 
-            if (!eventDate || !startTime || !endTime || !equipment) return;
+            if (!startTime || !endTime || !equipment) return;
+
+            let dates = [];
+            if (bookingType === 'single') {
+                const eventDate = document.getElementById('eventDate').value;
+                if (!eventDate) return;
+                dates = [eventDate];
+            } else {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                if (!startDate || !endDate) return;
+                
+                // Generate array of dates between start and end
+                const currentDate = new Date(startDate);
+                const lastDate = new Date(endDate);
+                while (currentDate <= lastDate) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+            }
 
             try {
-                const response = await fetch(`/check-availability?eventDate=${eventDate}&startTime=${startTime}&endTime=${endTime}&equipment=${equipment}`);
-                const data = await response.json();
+                let allAvailable = true;
+                for (const date of dates) {
+                    const response = await fetch(`/check-availability?eventDate=${date}&startTime=${startTime}&endTime=${endTime}&equipment=${equipment}`);
+                    const data = await response.json();
 
-                if (data.error) {
-                    availabilityMessage.textContent = 'Error checking availability';
-                    availabilityMessage.style.display = 'block';
-                    availabilityMessage.className = 'message error';
-                    alternativeProjectors.style.display = 'none';
-                    return false;
-                }
-
-                if (!data.available) {
-                    if (equipment.includes('Projector') && data.availableProjectors && data.availableProjectors.length > 0) {
-                        availabilityMessage.textContent = 'This projector is already booked for this time slot.';
-                        alternativeProjectors.textContent = 'Available projectors: ' + data.availableProjectors.join(', ');
-                        alternativeProjectors.style.display = 'block';
-                    } else {
-                        availabilityMessage.textContent = 'This equipment is already booked for this time slot';
+                    if (data.error) {
+                        availabilityMessage.textContent = 'Error checking availability';
+                        availabilityMessage.style.display = 'block';
+                        availabilityMessage.className = 'message error';
                         alternativeProjectors.style.display = 'none';
+                        return false;
                     }
-                    availabilityMessage.style.display = 'block';
-                    availabilityMessage.className = 'message error';
-                    return false;
+
+                    if (!data.available) {
+                        if (equipment.includes('Projector') && data.availableProjectors && data.availableProjectors.length > 0) {
+                            availabilityMessage.textContent = `This projector is already booked for ${date}.`;
+                            alternativeProjectors.textContent = 'Available projectors: ' + data.availableProjectors.join(', ');
+                            alternativeProjectors.style.display = 'block';
+                        } else {
+                            availabilityMessage.textContent = `This equipment is already booked for ${date}`;
+                            alternativeProjectors.style.display = 'none';
+                        }
+                        availabilityMessage.style.display = 'block';
+                        availabilityMessage.className = 'message error';
+                        allAvailable = false;
+                        break;
+                    }
                 }
 
-                availabilityMessage.textContent = 'Equipment is available for this time slot';
-                availabilityMessage.style.display = 'block';
-                availabilityMessage.className = 'message success';
-                alternativeProjectors.style.display = 'none';
-                return true;
+                if (allAvailable) {
+                    availabilityMessage.textContent = 'Equipment is available for the selected date(s)';
+                    availabilityMessage.style.display = 'block';
+                    availabilityMessage.className = 'message success';
+                    alternativeProjectors.style.display = 'none';
+                }
+
+                return allAvailable;
             } catch (error) {
                 console.error('Error:', error);
                 return false;
             }
         }
 
-        // Add event listeners for date/time/equipment changes
-        ['eventDate', 'startTime', 'endTime', 'equipment'].forEach(id => {
-            document.getElementById(id).addEventListener('change', checkAvailability);
+        function toggleDateInputs() {
+            const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
+            const singleDateInput = document.getElementById('singleDateInput');
+            const dateRangeInput = document.getElementById('dateRangeInput');
+            const eventDate = document.getElementById('eventDate');
+            const startDate = document.getElementById('startDate');
+            const endDate = document.getElementById('endDate');
+
+            if (bookingType === 'single') {
+                singleDateInput.style.display = 'block';
+                dateRangeInput.style.display = 'none';
+                eventDate.required = true;
+                startDate.required = false;
+                endDate.required = false;
+            } else {
+                singleDateInput.style.display = 'none';
+                dateRangeInput.style.display = 'block';
+                eventDate.required = false;
+                startDate.required = true;
+                endDate.required = true;
+            }
+        }
+
+        // Add validation for date range
+        document.getElementById('endDate').addEventListener('change', function() {
+            const startDate = document.getElementById('startDate');
+            const endDate = this;
+            
+            if (startDate.value && endDate.value) {
+                if (new Date(endDate.value) < new Date(startDate.value)) {
+                    alert('End date cannot be before start date');
+                    endDate.value = '';
+                }
+            }
         });
 
-        // Check availability before form submission
+        // Update form submission to handle date range
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
+            const startDate = document.getElementById('startDate');
+            const endDate = document.getElementById('endDate');
+            const eventDate = document.getElementById('eventDate');
+
+            if (bookingType === 'range' && (!startDate.value || !endDate.value)) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
             const available = await checkAvailability();
             if (available) {
                 form.submit();
