@@ -329,7 +329,10 @@
 
                     const response = await fetch('/submit-booking', {
                         method: 'POST',
-                        body: formData
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(formData)
                     });
                     
                     if (response.ok) {

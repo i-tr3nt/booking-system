@@ -287,7 +287,16 @@ app.get('/export-events', async (req, res) => {
 });
 
 app.post('/submit-booking', (req, res) => {
+    console.log('Received booking data:', req.body); // Add logging
+    
     const { projectName, bookedBy, eventDate, startTime, endTime, equipment } = req.body;
+    
+    // Validate required fields
+    if (!projectName || !bookedBy || !eventDate || !startTime || !endTime || !equipment) {
+        console.error('Missing required fields:', { projectName, bookedBy, eventDate, startTime, endTime, equipment });
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
     // Insert the booking
