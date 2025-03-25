@@ -163,9 +163,10 @@
             const bookingType = document.querySelector('input[name="bookingType"]:checked').value;
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
-            const equipment = equipmentSelect.value;
+            const selectedEquipment = Array.from(document.querySelectorAll('input[name="equipment"]:checked'))
+                .map(cb => cb.value);
 
-            if (!startTime || !endTime || !equipment) return;
+            if (!startTime || !endTime || selectedEquipment.length === 0) return;
 
             let dates = [];
             if (bookingType === 'single') {
@@ -189,31 +190,34 @@
             try {
                 let allAvailable = true;
                 for (const date of dates) {
-                    const response = await fetch(`/check-availability?eventDate=${date}&startTime=${startTime}&endTime=${endTime}&equipment=${equipment}`);
-                    const data = await response.json();
+                    for (const equipment of selectedEquipment) {
+                        const response = await fetch(`/check-availability?eventDate=${date}&startTime=${startTime}&endTime=${endTime}&equipment=${equipment}`);
+                        const data = await response.json();
 
-                    if (data.error) {
-                        availabilityMessage.textContent = 'Error checking availability';
-                        availabilityMessage.style.display = 'block';
-                        availabilityMessage.className = 'message error';
-                        alternativeProjectors.style.display = 'none';
-                        return false;
-                    }
-
-                    if (!data.available) {
-                        if (equipment.includes('Projector') && data.availableProjectors && data.availableProjectors.length > 0) {
-                            availabilityMessage.textContent = `This projector is already booked for ${date}.`;
-                            alternativeProjectors.textContent = 'Available projectors: ' + data.availableProjectors.join(', ');
-                            alternativeProjectors.style.display = 'block';
-                        } else {
-                            availabilityMessage.textContent = `This equipment is already booked for ${date}`;
+                        if (data.error) {
+                            availabilityMessage.textContent = 'Error checking availability';
+                            availabilityMessage.style.display = 'block';
+                            availabilityMessage.className = 'message error';
                             alternativeProjectors.style.display = 'none';
+                            return false;
                         }
-                        availabilityMessage.style.display = 'block';
-                        availabilityMessage.className = 'message error';
-                        allAvailable = false;
-                        break;
+
+                        if (!data.available) {
+                            if (equipment.includes('Projector') && data.availableProjectors && data.availableProjectors.length > 0) {
+                                availabilityMessage.textContent = `This projector is already booked for ${date}.`;
+                                alternativeProjectors.textContent = 'Available projectors: ' + data.availableProjectors.join(', ');
+                                alternativeProjectors.style.display = 'block';
+                            } else {
+                                availabilityMessage.textContent = `${equipment} is already booked for ${date}`;
+                                alternativeProjectors.style.display = 'none';
+                            }
+                            availabilityMessage.style.display = 'block';
+                            availabilityMessage.className = 'message error';
+                            allAvailable = false;
+                            break;
+                        }
                     }
+                    if (!allAvailable) break;
                 }
 
                 if (allAvailable) {
@@ -273,9 +277,21 @@
             const startDate = document.getElementById('startDate');
             const endDate = document.getElementById('endDate');
             const eventDate = document.getElementById('eventDate');
+            const selectedEquipment = Array.from(document.querySelectorAll('input[name="equipment"]:checked'))
+                .map(cb => cb.value);
+
+            if (selectedEquipment.length === 0) {
+                alert('Please select at least one piece of equipment');
+                return;
+            }
 
             if (bookingType === 'range' && (!startDate.value || !endDate.value)) {
                 alert('Please select both start and end dates');
+                return;
+            }
+
+            if (bookingType === 'single' && !eventDate.value) {
+                alert('Please select an event date');
                 return;
             }
 

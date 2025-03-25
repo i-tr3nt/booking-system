@@ -294,6 +294,9 @@ app.post('/submit-booking', (req, res) => {
     const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
+    // Convert equipment to array if it's a single value
+    const equipmentArray = Array.isArray(equipment) ? equipment : [equipment];
+
     if (bookingType === 'range') {
         // Generate array of dates between start and end
         const dates = [];
@@ -305,18 +308,20 @@ app.post('/submit-booking', (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Insert bookings for each date
-        const insertPromises = dates.map(date => {
-            return new Promise((resolve, reject) => {
-                db.run(`
-                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        });
+        // Insert bookings for each date and equipment combination
+        const insertPromises = dates.flatMap(date => 
+            equipmentArray.map(equipment => 
+                new Promise((resolve, reject) => {
+                    db.run(`
+                        INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                })
+            )
+        );
 
         Promise.all(insertPromises)
             .then(() => {
@@ -329,18 +334,27 @@ app.post('/submit-booking', (req, res) => {
             });
     } else {
         // Single date booking
-        db.run(`
-            INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
-            if (err) {
-                console.error('Error submitting booking:', err);
-                res.redirect('/?error=true');
-            } else {
+        const insertPromises = equipmentArray.map(equipment =>
+            new Promise((resolve, reject) => {
+                db.run(`
+                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            })
+        );
+
+        Promise.all(insertPromises)
+            .then(() => {
                 console.log('Booking submitted successfully');
                 res.redirect('/?success=true');
-            }
-        });
+            })
+            .catch(err => {
+                console.error('Error submitting booking:', err);
+                res.redirect('/?error=true');
+            });
     }
 });
 
