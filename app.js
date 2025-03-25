@@ -291,11 +291,8 @@ app.get('/export-events', async (req, res) => {
 });
 
 app.post('/submit-booking', (req, res) => {
-    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
+    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, combinedEquipment, bookingType } = req.body;
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
-
-    // Convert equipment to array if it's a single value
-    const equipmentArray = Array.isArray(equipment) ? equipment : [equipment];
 
     if (bookingType === 'range') {
         // Generate array of dates between start and end
@@ -308,19 +305,17 @@ app.post('/submit-booking', (req, res) => {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Insert bookings for each date and equipment combination
-        const insertPromises = dates.flatMap(date => 
-            equipmentArray.map(equipment => 
-                new Promise((resolve, reject) => {
-                    db.run(`
-                        INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                })
-            )
+        // Insert bookings for each date
+        const insertPromises = dates.map(date => 
+            new Promise((resolve, reject) => {
+                db.run(`
+                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [projectName, bookedBy, date, startTime, endTime, combinedEquipment, dateSubmitted], (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            })
         );
 
         Promise.all(insertPromises)
@@ -334,121 +329,63 @@ app.post('/submit-booking', (req, res) => {
             });
     } else {
         // Single date booking
-        const insertPromises = equipmentArray.map(equipment =>
-            new Promise((resolve, reject) => {
-                db.run(`
-                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            })
-        );
-
-        Promise.all(insertPromises)
-            .then(() => {
-                console.log('Booking submitted successfully');
-                res.redirect('/?success=true');
-            })
-            .catch(err => {
+        db.run(`
+            INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [projectName, bookedBy, eventDate, startTime, endTime, combinedEquipment, dateSubmitted], (err) => {
+            if (err) {
                 console.error('Error submitting booking:', err);
                 res.redirect('/?error=true');
-            });
+            } else {
+                console.log('Booking submitted successfully');
+                res.redirect('/?success=true');
+            }
+        });
     }
 });
 
-// Check for double bookings
+// Update availability check to handle combined equipment
 app.get('/check-availability', (req, res) => {
     const { eventDate, startTime, endTime, equipment } = req.query;
     
-    // First, check if the requested equipment is available
+    // First, check if any of the requested equipment is booked
     db.all(`
         SELECT * FROM bookings 
         WHERE eventDate = ? 
-        AND equipment = ?
         AND (
             (startTime <= ? AND endTime > ?) OR
             (startTime < ? AND endTime >= ?) OR
             (startTime >= ? AND endTime <= ?)
         )
-    `, [eventDate, equipment, startTime, startTime, endTime, endTime, startTime, endTime], 
+    `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime], 
     (err, rows) => {
         if (err) {
             res.json({ error: 'Error checking availability' });
             return;
         }
 
-        // If the equipment is available, return success
+        // If no bookings found, the equipment is available
         if (rows.length === 0) {
             res.json({ available: true });
             return;
         }
 
-        // If a projector is requested and not available, find available projectors
-        if (equipment.includes('Projector') && !equipment.includes('Gazebo')) {
-            db.all(`
-                SELECT DISTINCT equipment
-                FROM bookings 
-                WHERE eventDate = ? 
-                AND equipment LIKE 'Projector%'
-                AND (
-                    (startTime <= ? AND endTime > ?) OR
-                    (startTime < ? AND endTime >= ?) OR
-                    (startTime >= ? AND endTime <= ?)
-                )
-            `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime],
-            (err, bookedProjectors) => {
-                if (err) {
-                    res.json({ available: false });
-                    return;
-                }
+        // Check if any of the booked equipment conflicts with the requested equipment
+        const bookedEquipment = rows.map(row => row.equipment);
+        const requestedEquipment = equipment.split(' + ');
 
-                // Create array of all projectors
-                const allProjectors = ['Projector 1', 'Projector 2', 'Projector 3', 'Projector 4'];
-                
-                // Filter out booked projectors
-                const bookedProjectorNames = bookedProjectors.map(row => row.equipment);
-                const availableProjectors = allProjectors.filter(p => !bookedProjectorNames.includes(p));
+        // Check for conflicts
+        const hasConflict = bookedEquipment.some(booked => {
+            const bookedItems = booked.split(' + ');
+            return requestedEquipment.some(requested => 
+                bookedItems.some(item => item === requested)
+            );
+        });
 
-                res.json({
-                    available: false,
-                    availableProjectors: availableProjectors
-                });
-            });
-        } else if (equipment === 'Gazebo+Projector 4+Zoom VC') {
-            // Check availability for all components
-            db.all(`
-                SELECT equipment
-                FROM bookings 
-                WHERE eventDate = ? 
-                AND (
-                    equipment = 'Gazebo only' OR
-                    equipment = 'Projector 4' OR
-                    equipment = 'Zoom Video Conferencing' OR
-                    equipment = 'Gazebo+Projector 4' OR
-                    equipment = 'Gazebo+Projector 4+Zoom VC'
-                )
-                AND (
-                    (startTime <= ? AND endTime > ?) OR
-                    (startTime < ? AND endTime >= ?) OR
-                    (startTime >= ? AND endTime <= ?)
-                )
-            `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime],
-            (err, bookedEquipment) => {
-                if (err) {
-                    res.json({ available: false });
-                    return;
-                }
-
-                if (bookedEquipment.length === 0) {
-                    res.json({ available: true });
-                } else {
-                    res.json({ available: false });
-                }
-            });
-        } else {
+        if (hasConflict) {
             res.json({ available: false });
+        } else {
+            res.json({ available: true });
         }
     });
 });

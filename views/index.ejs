@@ -295,6 +295,22 @@
                 return;
             }
 
+            // Combine room and equipment into a single booking
+            const room = selectedEquipment.find(item => ['Meeting Room', 'Study Room', 'Gazebo'].includes(item));
+            const equipment = selectedEquipment.filter(item => !['Meeting Room', 'Study Room', 'Gazebo'].includes(item));
+            
+            // Create a combined equipment string
+            const combinedEquipment = room ? 
+                `${room}${equipment.length > 0 ? ' + ' + equipment.join(' + ') : ''}` : 
+                equipment.join(' + ');
+
+            // Create a hidden input for the combined equipment
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'combinedEquipment';
+            hiddenInput.value = combinedEquipment;
+            form.appendChild(hiddenInput);
+
             const available = await checkAvailability();
             if (available) {
                 form.submit();
