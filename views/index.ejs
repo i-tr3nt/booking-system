@@ -310,6 +310,9 @@
                 combinedEquipment = equipment.join(' + ');
             }
 
+            // Store the original checkboxes
+            const originalCheckboxes = Array.from(document.querySelectorAll('input[name="equipment"]:checked'));
+
             // Remove all existing equipment inputs
             const existingInputs = form.querySelectorAll('input[name="equipment"]');
             existingInputs.forEach(input => input.remove());
@@ -328,17 +331,40 @@
 
             const available = await checkAvailability();
             if (available) {
-                // Create FormData object
-                const formData = new FormData(form);
-                
                 try {
+                    const formData = new FormData(form);
                     const response = await fetch('/submit-booking', {
                         method: 'POST',
                         body: formData
                     });
                     
                     if (response.ok) {
-                        window.location.reload();
+                        // Show success message
+                        const successMessage = document.createElement('div');
+                        successMessage.className = 'message success';
+                        successMessage.textContent = 'Booking submitted successfully!';
+                        form.insertBefore(successMessage, form.firstChild);
+                        
+                        // Reset form
+                        form.reset();
+                        
+                        // Restore original checkboxes
+                        originalCheckboxes.forEach(checkbox => {
+                            const newCheckbox = document.createElement('input');
+                            newCheckbox.type = 'checkbox';
+                            newCheckbox.name = 'equipment';
+                            newCheckbox.value = checkbox.value;
+                            const label = document.createElement('label');
+                            label.className = 'checkbox-label';
+                            label.appendChild(newCheckbox);
+                            label.appendChild(document.createTextNode(' ' + checkbox.value));
+                            document.querySelector('.equipment-options').appendChild(label);
+                        });
+
+                        // Reload the page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
                     } else {
                         alert('Error submitting booking. Please try again.');
                     }
