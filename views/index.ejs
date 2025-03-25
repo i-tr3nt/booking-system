@@ -101,12 +101,12 @@
                             <label class="checkbox-label">
                                 <input type="checkbox" name="equipment" value="Study Room"> Study Room
                             </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Gazebo"> Gazebo
+                            </label>
                         </div>
                         <div class="equipment-group">
                             <h4>Equipment</h4>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="equipment" value="Gazebo only"> Gazebo only
-                            </label>
                             <label class="checkbox-label">
                                 <input type="checkbox" name="equipment" value="Projector 1"> Projector 1
                             </label>
@@ -297,7 +297,7 @@
         document.querySelectorAll('input[name="equipment"]').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const selectedRooms = Array.from(document.querySelectorAll('input[name="equipment"]:checked'))
-                    .filter(cb => ['Meeting Room', 'Study Room', 'Gazebo only'].includes(cb.value))
+                    .filter(cb => ['Meeting Room', 'Study Room', 'Gazebo'].includes(cb.value))
                     .map(cb => cb.value);
 
                 if (selectedRooms.length > 1) {
