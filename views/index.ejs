@@ -300,15 +300,22 @@
             const equipment = selectedEquipment.filter(item => !['Meeting Room', 'Study Room', 'Gazebo'].includes(item));
             
             // Create a combined equipment string
-            const combinedEquipment = room ? 
-                `${room}${equipment.length > 0 ? ' + ' + equipment.join(' + ') : ''}` : 
-                equipment.join(' + ');
-
-            // Remove any existing hidden equipment input
-            const existingInput = form.querySelector('input[name="equipment"]');
-            if (existingInput) {
-                existingInput.remove();
+            let combinedEquipment = '';
+            if (room) {
+                combinedEquipment = room;
+                if (equipment.length > 0) {
+                    combinedEquipment += ' + ' + equipment.join(' + ');
+                }
+            } else {
+                combinedEquipment = equipment.join(' + ');
             }
+
+            // Remove all existing equipment checkboxes
+            document.querySelectorAll('input[name="equipment"]').forEach(input => {
+                if (input.type === 'checkbox') {
+                    input.remove();
+                }
+            });
 
             // Create a new hidden input for the combined equipment
             const hiddenInput = document.createElement('input');
