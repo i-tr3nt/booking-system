@@ -22,9 +22,27 @@
             <h2>Events</h2>
             <div class="header-actions">
                 <div class="search-filters">
-                    <input type="text" id="searchText" placeholder="Search by project or booker..." class="search-input">
-                    <input type="date" id="searchDate" class="search-input">
-                    <button onclick="resetFilters()" class="reset-btn">Reset Filters</button>
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search by project name or equipment...">
+                    </div>
+                    <div class="filter-options">
+                        <select id="dateFilter">
+                            <option value="">All Dates</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="future">Future Events</option>
+                            <option value="past">Past Events</option>
+                        </select>
+                        <select id="equipmentFilter">
+                            <option value="">All Equipment</option>
+                            <option value="Meeting Room">Meeting Room</option>
+                            <option value="Study Room">Study Room</option>
+                            <option value="Gazebo only">Gazebo</option>
+                            <option value="Projector">Projectors</option>
+                            <option value="Zoom Video Conferencing">Zoom VC</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="export-dropdown">
                     <button class="export-btn" onclick="toggleExportMenu()">
@@ -115,8 +133,9 @@
     </div>
 
     <script>
-        const searchText = document.getElementById('searchText');
-        const searchDate = document.getElementById('searchDate');
+        const searchInput = document.getElementById('searchInput');
+        const dateFilter = document.getElementById('dateFilter');
+        const equipmentFilter = document.getElementById('equipmentFilter');
         const upcomingTableBody = document.getElementById('upcomingEventsTableBody');
         const pastTableBody = document.getElementById('pastEventsTableBody');
         const exportMenu = document.getElementById('exportMenu');
@@ -136,44 +155,68 @@
             }
         });
 
-        function filterTable() {
-            const text = searchText.value.toLowerCase();
-            const date = searchDate.value;
+        function filterEvents() {
+            const searchText = searchInput.value.toLowerCase();
+            const dateFilter = document.getElementById('dateFilter').value;
+            const equipmentFilter = document.getElementById('equipmentFilter').value;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-            function filterRows(rows, tableBody) {
-                const filteredRows = rows.filter(row => {
-                    const cells = Array.from(row.getElementsByTagName('td'));
-                    const matchesText = text === '' || 
-                        cells[0].textContent.toLowerCase().includes(text) || // Project Name
-                        cells[1].textContent.toLowerCase().includes(text);   // Booked By
-                    const matchesDate = date === '' || cells[2].textContent === date;
+            const rows = document.querySelectorAll('table tbody tr');
+            rows.forEach(row => {
+                const projectName = row.cells[0].textContent.toLowerCase();
+                const equipment = row.cells[4].textContent.toLowerCase();
+                const dateStr = row.cells[2].textContent;
+                const eventDate = new Date(dateStr);
+                eventDate.setHours(0, 0, 0, 0);
+
+                let showRow = true;
+
+                // Apply search filter
+                if (searchText && !projectName.includes(searchText) && !equipment.includes(searchText)) {
+                    showRow = false;
+                }
+
+                // Apply date filter
+                if (dateFilter) {
+                    const diffTime = Math.abs(eventDate - today);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     
-                    return matchesText && matchesDate;
-                });
+                    switch(dateFilter) {
+                        case 'today':
+                            showRow = showRow && diffDays === 0;
+                            break;
+                        case 'week':
+                            showRow = showRow && diffDays <= 7;
+                            break;
+                        case 'month':
+                            showRow = showRow && diffDays <= 30;
+                            break;
+                        case 'future':
+                            showRow = showRow && eventDate > today;
+                            break;
+                        case 'past':
+                            showRow = showRow && eventDate < today;
+                            break;
+                    }
+                }
 
-                tableBody.innerHTML = '';
-                filteredRows.forEach(row => tableBody.appendChild(row.cloneNode(true)));
-            }
+                // Apply equipment filter
+                if (equipmentFilter) {
+                    if (equipmentFilter === 'Projector') {
+                        showRow = showRow && equipment.includes('projector');
+                    } else {
+                        showRow = showRow && equipment.includes(equipmentFilter.toLowerCase());
+                    }
+                }
 
-            // Filter both tables
-            filterRows(originalUpcomingRows, upcomingTableBody);
-            filterRows(originalPastRows, pastTableBody);
+                row.style.display = showRow ? '' : 'none';
+            });
         }
 
-        function resetFilters() {
-            searchText.value = '';
-            searchDate.value = '';
-            
-            // Reset both tables
-            upcomingTableBody.innerHTML = '';
-            originalUpcomingRows.forEach(row => upcomingTableBody.appendChild(row.cloneNode(true)));
-            
-            pastTableBody.innerHTML = '';
-            originalPastRows.forEach(row => pastTableBody.appendChild(row.cloneNode(true)));
-        }
-
-        searchText.addEventListener('input', filterTable);
-        searchDate.addEventListener('change', filterTable);
+        // Add event listeners for filters
+        document.getElementById('dateFilter').addEventListener('change', filterEvents);
+        document.getElementById('equipmentFilter').addEventListener('change', filterEvents);
     </script>
 </body>
 </html> 

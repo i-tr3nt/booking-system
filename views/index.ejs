@@ -91,18 +91,39 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="equipment">Equipment Required:</label>
-                    <select id="equipment" name="equipment" required>
-                        <option value="">Select Equipment</option>
-                        <option value="Gazebo only">Gazebo only</option>
-                        <option value="Projector 1">Projector 1</option>
-                        <option value="Projector 2">Projector 2</option>
-                        <option value="Projector 3">Projector 3</option>
-                        <option value="Projector 4">Projector 4</option>
-                        <option value="Gazebo+Projector 4">Gazebo+Projector 4</option>
-                        <option value="Gazebo+Projector 4+Zoom VC">Gazebo+Projector 4+Zoom VC</option>
-                        <option value="Zoom Video Conferencing">Zoom Video Conferencing</option>
-                    </select>
+                    <label for="equipment">Equipment:</label>
+                    <div class="equipment-options">
+                        <div class="equipment-group">
+                            <h4>Rooms</h4>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Meeting Room"> Meeting Room
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Study Room"> Study Room
+                            </label>
+                        </div>
+                        <div class="equipment-group">
+                            <h4>Equipment</h4>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Gazebo only"> Gazebo only
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Projector 1"> Projector 1
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Projector 2"> Projector 2
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Projector 3"> Projector 3
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Projector 4"> Projector 4
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="Zoom Video Conferencing"> Zoom Video Conferencing
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="availabilityMessage" class="message" style="display: none;"></div>
@@ -270,6 +291,21 @@
             setTimeout(() => {
                 message.style.display = 'none';
             }, 5000);
+        });
+
+        // Equipment selection validation
+        document.querySelectorAll('input[name="equipment"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const selectedRooms = Array.from(document.querySelectorAll('input[name="equipment"]:checked'))
+                    .filter(cb => ['Meeting Room', 'Study Room', 'Gazebo only'].includes(cb.value))
+                    .map(cb => cb.value);
+
+                if (selectedRooms.length > 1) {
+                    // If trying to select multiple rooms, uncheck the current selection
+                    this.checked = false;
+                    alert('You can only select one room at a time (Meeting Room, Study Room, or Gazebo).');
+                }
+            });
         });
     </script>
 </body>
