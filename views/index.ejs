@@ -310,12 +310,9 @@
                 combinedEquipment = equipment.join(' + ');
             }
 
-            // Remove all existing equipment checkboxes
-            document.querySelectorAll('input[name="equipment"]').forEach(input => {
-                if (input.type === 'checkbox') {
-                    input.remove();
-                }
-            });
+            // Remove all existing equipment inputs
+            const existingInputs = form.querySelectorAll('input[name="equipment"]');
+            existingInputs.forEach(input => input.remove());
 
             // Create a new hidden input for the combined equipment
             const hiddenInput = document.createElement('input');
@@ -324,9 +321,31 @@
             hiddenInput.value = combinedEquipment;
             form.appendChild(hiddenInput);
 
+            // Set the event date based on booking type
+            if (bookingType === 'range') {
+                eventDate.value = startDate.value;
+            }
+
             const available = await checkAvailability();
             if (available) {
-                form.submit();
+                // Create FormData object
+                const formData = new FormData(form);
+                
+                try {
+                    const response = await fetch('/submit-booking', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Error submitting booking. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error submitting booking. Please try again.');
+                }
             }
         });
 
