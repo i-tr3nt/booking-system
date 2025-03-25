@@ -304,7 +304,13 @@
                 `${room}${equipment.length > 0 ? ' + ' + equipment.join(' + ') : ''}` : 
                 equipment.join(' + ');
 
-            // Create a hidden input for the combined equipment
+            // Remove any existing hidden equipment input
+            const existingInput = form.querySelector('input[name="equipment"]');
+            if (existingInput) {
+                existingInput.remove();
+            }
+
+            // Create a new hidden input for the combined equipment
             const hiddenInput = document.createElement('input');
             hiddenInput.type = 'hidden';
             hiddenInput.name = 'equipment';
