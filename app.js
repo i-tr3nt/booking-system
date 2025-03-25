@@ -81,30 +81,26 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Routes
-app.get('/', async (req, res) => {
-    // Get upcoming bookings
+app.get('/', (req, res) => {
+    const today = moment().format('YYYY-MM-DD');
+    
     db.all(`
         SELECT * FROM bookings 
-        WHERE date(eventDate) >= date('now') 
-        ORDER BY eventDate ASC, startTime ASC 
+        WHERE eventDate >= ? 
+        ORDER BY eventDate ASC, startTime ASC
         LIMIT 5
-    `, [], (err, rows) => {
+    `, [today], (err, upcomingBookings) => {
         if (err) {
-            console.error('Error fetching bookings:', err);
-            res.render('index', { upcomingBookings: [], showMessage: false });
-        } else {
-            // Format dates for display
-            const formattedBookings = rows.map(booking => ({
-                ...booking,
-                eventDate: moment(booking.eventDate).format('DD/MM/YYYY'),
-                startTime: moment(booking.startTime, 'HH:mm').format('HH:mm'),
-                endTime: moment(booking.endTime, 'HH:mm').format('HH:mm')
-            }));
-            res.render('index', { 
-                upcomingBookings: formattedBookings,
-                showMessage: req.query.success || req.query.error
-            });
+            console.error('Error fetching upcoming bookings:', err);
+            upcomingBookings = [];
         }
+
+        res.render('index', {
+            upcomingBookings,
+            showMessage: true,
+            success: req.query.success === 'true',
+            error: req.query.error === 'true'
+        });
     });
 });
 
@@ -291,7 +287,7 @@ app.get('/export-events', async (req, res) => {
 });
 
 app.post('/submit-booking', (req, res) => {
-    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, combinedEquipment, bookingType } = req.body;
+    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
     if (bookingType === 'range') {
@@ -311,9 +307,14 @@ app.post('/submit-booking', (req, res) => {
                 db.run(`
                     INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [projectName, bookedBy, date, startTime, endTime, combinedEquipment, dateSubmitted], (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
+                    if (err) {
+                        console.error('Error inserting booking:', err);
+                        reject(err);
+                    } else {
+                        console.log('Booking inserted successfully for date:', date);
+                        resolve();
+                    }
                 });
             })
         );
@@ -332,7 +333,7 @@ app.post('/submit-booking', (req, res) => {
         db.run(`
             INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [projectName, bookedBy, eventDate, startTime, endTime, combinedEquipment, dateSubmitted], (err) => {
+        `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
             if (err) {
                 console.error('Error submitting booking:', err);
                 res.redirect('/?error=true');
