@@ -322,7 +322,15 @@
                     const formData = new FormData();
                     formData.append('projectName', document.getElementById('projectName').value);
                     formData.append('bookedBy', document.getElementById('bookedBy').value);
-                    formData.append('eventDate', eventDate.value);
+                    formData.append('bookingType', bookingType);
+                    
+                    if (bookingType === 'range') {
+                        formData.append('startDate', startDate.value);
+                        formData.append('endDate', endDate.value);
+                    } else {
+                        formData.append('eventDate', eventDate.value);
+                    }
+                    
                     formData.append('startTime', document.getElementById('startTime').value);
                     formData.append('endTime', document.getElementById('endTime').value);
                     formData.append('equipment', combinedEquipment);

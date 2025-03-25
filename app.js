@@ -287,31 +287,79 @@ app.get('/export-events', async (req, res) => {
 });
 
 app.post('/submit-booking', (req, res) => {
-    console.log('Received booking data:', req.body); // Add logging
+    console.log('Received booking data:', req.body);
     
-    const { projectName, bookedBy, eventDate, startTime, endTime, equipment } = req.body;
+    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
     
     // Validate required fields
-    if (!projectName || !bookedBy || !eventDate || !startTime || !endTime || !equipment) {
-        console.error('Missing required fields:', { projectName, bookedBy, eventDate, startTime, endTime, equipment });
+    if (!projectName || !bookedBy || !startTime || !endTime || !equipment) {
+        console.error('Missing required fields:', { projectName, bookedBy, startTime, endTime, equipment });
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
-    // Insert the booking
-    db.run(`
-        INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
-        if (err) {
-            console.error('Error submitting booking:', err);
-            res.status(500).json({ error: 'Error submitting booking' });
-        } else {
-            console.log('Booking submitted successfully');
-            res.json({ success: true });
+    if (bookingType === 'range') {
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'Start and end dates are required for range bookings' });
         }
-    });
+
+        // Generate array of dates between start and end
+        const dates = [];
+        const currentDate = new Date(startDate);
+        const lastDate = new Date(endDate);
+        
+        while (currentDate <= lastDate) {
+            dates.push(currentDate.toISOString().split('T')[0]);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Insert bookings for each date
+        const insertPromises = dates.map(date => 
+            new Promise((resolve, reject) => {
+                db.run(`
+                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
+                    if (err) {
+                        console.error('Error inserting booking:', err);
+                        reject(err);
+                    } else {
+                        console.log('Booking inserted successfully for date:', date);
+                        resolve();
+                    }
+                });
+            })
+        );
+
+        Promise.all(insertPromises)
+            .then(() => {
+                console.log('Date range booking submitted successfully');
+                res.json({ success: true });
+            })
+            .catch(err => {
+                console.error('Error submitting date range booking:', err);
+                res.status(500).json({ error: 'Error submitting booking' });
+            });
+    } else {
+        // Single date booking
+        if (!eventDate) {
+            return res.status(400).json({ error: 'Event date is required for single date bookings' });
+        }
+
+        db.run(`
+            INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
+            if (err) {
+                console.error('Error submitting booking:', err);
+                res.status(500).json({ error: 'Error submitting booking' });
+            } else {
+                console.log('Booking submitted successfully');
+                res.json({ success: true });
+            }
+        });
+    }
 });
 
 // Update availability check to handle combined equipment
