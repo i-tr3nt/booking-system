@@ -475,18 +475,119 @@ select:focus {
 
 .events-section {
     margin-bottom: 2rem;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 1.5rem;
+    overflow: hidden;
 }
 
 .events-section h3 {
-    color: #374151;
-    font-size: 1.25rem;
+    color: #333;
+    font-size: 1.5rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid #eee;
+}
+
+.events-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.events-section th,
+.events-section td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+}
+
+.events-section th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.events-section tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .events-section {
+        padding: 1rem;
+    }
+
+    .events-section table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+
+    .events-section th,
+    .events-section td {
+        min-width: 120px;
+    }
+
+    .events-section th:first-child,
+    .events-section td:first-child {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 1;
+    }
+
+    .events-section th:first-child {
+        background: #f8f9fa;
+    }
+
+    /* Add visual indicator for scrollable content */
+    .events-section::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 30px;
+        background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1));
+        pointer-events: none;
+    }
+
+    /* Adjust header actions for mobile */
+    .header-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .search-filters {
+        width: 100%;
+    }
+
+    .filter-options {
+        flex-direction: column;
+    }
+
+    .filter-options select {
+        width: 100%;
+    }
+
+    .export-dropdown {
+        width: 100%;
+    }
+
+    .export-btn {
+        width: 100%;
+    }
+}
+
+/* Add smooth scrolling for touch devices */
+@media (hover: none) {
+    .events-section table {
+        scroll-behavior: smooth;
+    }
 }
 
 /* Add some spacing between the tables */
