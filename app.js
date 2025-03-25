@@ -287,62 +287,22 @@ app.get('/export-events', async (req, res) => {
 });
 
 app.post('/submit-booking', (req, res) => {
-    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
+    const { projectName, bookedBy, eventDate, startTime, endTime, equipment } = req.body;
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
-    if (bookingType === 'range') {
-        // Generate array of dates between start and end
-        const dates = [];
-        const currentDate = new Date(startDate);
-        const lastDate = new Date(endDate);
-        
-        while (currentDate <= lastDate) {
-            dates.push(currentDate.toISOString().split('T')[0]);
-            currentDate.setDate(currentDate.getDate() + 1);
+    // Insert the booking
+    db.run(`
+        INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
+        if (err) {
+            console.error('Error submitting booking:', err);
+            res.status(500).json({ error: 'Error submitting booking' });
+        } else {
+            console.log('Booking submitted successfully');
+            res.json({ success: true });
         }
-
-        // Insert bookings for each date
-        const insertPromises = dates.map(date => 
-            new Promise((resolve, reject) => {
-                db.run(`
-                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
-                    if (err) {
-                        console.error('Error inserting booking:', err);
-                        reject(err);
-                    } else {
-                        console.log('Booking inserted successfully for date:', date);
-                        resolve();
-                    }
-                });
-            })
-        );
-
-        Promise.all(insertPromises)
-            .then(() => {
-                console.log('Date range booking submitted successfully');
-                res.redirect('/?success=true');
-            })
-            .catch(err => {
-                console.error('Error submitting date range booking:', err);
-                res.redirect('/?error=true');
-            });
-    } else {
-        // Single date booking
-        db.run(`
-            INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
-            if (err) {
-                console.error('Error submitting booking:', err);
-                res.redirect('/?error=true');
-            } else {
-                console.log('Booking submitted successfully');
-                res.redirect('/?success=true');
-            }
-        });
-    }
+    });
 });
 
 // Update availability check to handle combined equipment

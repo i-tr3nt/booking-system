@@ -310,20 +310,6 @@
                 combinedEquipment = equipment.join(' + ');
             }
 
-            // Store the original checkboxes
-            const originalCheckboxes = Array.from(document.querySelectorAll('input[name="equipment"]:checked'));
-
-            // Remove all existing equipment inputs
-            const existingInputs = form.querySelectorAll('input[name="equipment"]');
-            existingInputs.forEach(input => input.remove());
-
-            // Create a new hidden input for the combined equipment
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'equipment';
-            hiddenInput.value = combinedEquipment;
-            form.appendChild(hiddenInput);
-
             // Set the event date based on booking type
             if (bookingType === 'range') {
                 eventDate.value = startDate.value;
@@ -332,7 +318,15 @@
             const available = await checkAvailability();
             if (available) {
                 try {
-                    const formData = new FormData(form);
+                    // Create a new FormData object
+                    const formData = new FormData();
+                    formData.append('projectName', document.getElementById('projectName').value);
+                    formData.append('bookedBy', document.getElementById('bookedBy').value);
+                    formData.append('eventDate', eventDate.value);
+                    formData.append('startTime', document.getElementById('startTime').value);
+                    formData.append('endTime', document.getElementById('endTime').value);
+                    formData.append('equipment', combinedEquipment);
+
                     const response = await fetch('/submit-booking', {
                         method: 'POST',
                         body: formData
@@ -348,25 +342,13 @@
                         // Reset form
                         form.reset();
                         
-                        // Restore original checkboxes
-                        originalCheckboxes.forEach(checkbox => {
-                            const newCheckbox = document.createElement('input');
-                            newCheckbox.type = 'checkbox';
-                            newCheckbox.name = 'equipment';
-                            newCheckbox.value = checkbox.value;
-                            const label = document.createElement('label');
-                            label.className = 'checkbox-label';
-                            label.appendChild(newCheckbox);
-                            label.appendChild(document.createTextNode(' ' + checkbox.value));
-                            document.querySelector('.equipment-options').appendChild(label);
-                        });
-
                         // Reload the page after a short delay
                         setTimeout(() => {
                             window.location.reload();
                         }, 1500);
                     } else {
-                        alert('Error submitting booking. Please try again.');
+                        const errorData = await response.json();
+                        alert(errorData.error || 'Error submitting booking. Please try again.');
                     }
                 } catch (error) {
                     console.error('Error:', error);
