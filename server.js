@@ -47,10 +47,10 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 // Session configuration
 app.use(session({
     secret: 'thruzim-secret-key',
-    resave: false,
+    resave: true,
     saveUninitialized: true,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for now to ensure it works
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
@@ -82,16 +82,22 @@ app.get('/admin/login', (req, res) => {
 // Admin login handler
 app.post('/admin/login', (req, res) => {
     const { email, password } = req.body;
+    console.log('Login attempt:', { email, password }); // Debug log
+
     const validAdmins = [
         { email: 'jchipanga@gmail.com', password: 'thruzimadmin2025' },
-        { email: 'takudzwatrenttaderera@gmailcom', password: 'thruzimadmin2025' }
+        { email: 'takudzwatrenttaderera@gmail.com', password: 'thruzimadmin2025' } // Fixed email address
     ];
 
     const admin = validAdmins.find(a => a.email === email && a.password === password);
+    console.log('Admin found:', admin); // Debug log
+
     if (admin) {
         req.session.isAdmin = true;
+        console.log('Session set:', req.session); // Debug log
         res.redirect('/admin');
     } else {
+        console.log('Login failed'); // Debug log
         res.render('admin-login', { error: 'Invalid email or password' });
     }
 });
@@ -103,7 +109,13 @@ app.get('/admin/logout', (req, res) => {
 });
 
 // Admin dashboard
-app.get('/admin', isAdmin, (req, res) => {
+app.get('/admin', (req, res) => {
+    console.log('Admin route accessed, session:', req.session); // Debug log
+    if (!req.session.isAdmin) {
+        console.log('Not authenticated, redirecting to login'); // Debug log
+        return res.redirect('/admin/login');
+    }
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
