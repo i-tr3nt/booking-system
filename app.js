@@ -5,6 +5,7 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 const { parse } = require('json2csv');
 const nodemailer = require('nodemailer');
+const { addBookingToCalendar } = require('./googleCalendar');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -46,6 +47,40 @@ async function sendBookingNotification(booking) {
     } catch (error) {
         console.error('Error sending booking notification email:', error);
     }
+}
+
+// Function to generate calendar links
+function generateCalendarLinks(booking) {
+    const startDateTime = moment(`${booking.eventDate}T${booking.startTime}`).format('YYYYMMDDTHHmmss');
+    const endDateTime = moment(`${booking.eventDate}T${booking.endTime}`).format('YYYYMMDDTHHmmss');
+    
+    // Format description with booking details
+    const description = `Project: ${booking.projectName}\nBooked By: ${booking.bookedBy}\nEquipment: ${booking.equipment}`;
+    
+    // Google Calendar link
+    const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(booking.projectName)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description)}`;
+    
+    // Outlook Calendar link
+    const outlookCalendarLink = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(booking.projectName)}&startdt=${startDateTime}&enddt=${endDateTime}&body=${encodeURIComponent(description)}`;
+    
+    // iCal format
+    const icalData = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'BEGIN:VEVENT',
+        `DTSTART:${startDateTime}`,
+        `DTEND:${endDateTime}`,
+        `SUMMARY:${booking.projectName}`,
+        `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
+
+    return {
+        googleCalendarLink,
+        outlookCalendarLink,
+        icalData
+    };
 }
 
 // Middleware
@@ -286,7 +321,7 @@ app.get('/export-events', async (req, res) => {
     }
 });
 
-app.post('/submit-booking', (req, res) => {
+app.post('/submit-booking', async (req, res) => {
     console.log('Received booking data:', req.body);
     
     const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
@@ -299,66 +334,94 @@ app.post('/submit-booking', (req, res) => {
 
     const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
 
-    if (bookingType === 'range') {
-        if (!startDate || !endDate) {
-            return res.status(400).json({ error: 'Start and end dates are required for range bookings' });
-        }
-
-        // Generate array of dates between start and end
-        const dates = [];
-        const currentDate = new Date(startDate);
-        const lastDate = new Date(endDate);
-        
-        while (currentDate <= lastDate) {
-            dates.push(currentDate.toISOString().split('T')[0]);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        // Insert bookings for each date
-        const insertPromises = dates.map(date => 
-            new Promise((resolve, reject) => {
-                db.run(`
-                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
-                    if (err) {
-                        console.error('Error inserting booking:', err);
-                        reject(err);
-                    } else {
-                        console.log('Booking inserted successfully for date:', date);
-                        resolve();
-                    }
-                });
-            })
-        );
-
-        Promise.all(insertPromises)
-            .then(() => {
-                console.log('Date range booking submitted successfully');
-                res.json({ success: true });
-            })
-            .catch(err => {
-                console.error('Error submitting date range booking:', err);
-                res.status(500).json({ error: 'Error submitting booking' });
-            });
-    } else {
-        // Single date booking
-        if (!eventDate) {
-            return res.status(400).json({ error: 'Event date is required for single date bookings' });
-        }
-
-        db.run(`
-            INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
-            if (err) {
-                console.error('Error submitting booking:', err);
-                res.status(500).json({ error: 'Error submitting booking' });
-            } else {
-                console.log('Booking submitted successfully');
-                res.json({ success: true });
+    try {
+        if (bookingType === 'range') {
+            if (!startDate || !endDate) {
+                return res.status(400).json({ error: 'Start and end dates are required for range bookings' });
             }
-        });
+
+            // Generate array of dates between start and end
+            const dates = [];
+            const currentDate = new Date(startDate);
+            const lastDate = new Date(endDate);
+            
+            while (currentDate <= lastDate) {
+                dates.push(currentDate.toISOString().split('T')[0]);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            // Insert bookings for each date
+            const insertPromises = dates.map(date => 
+                new Promise((resolve, reject) => {
+                    const booking = {
+                        projectName,
+                        bookedBy,
+                        eventDate: date,
+                        startTime,
+                        endTime,
+                        equipment,
+                        dateSubmitted
+                    };
+
+                    db.run(`
+                        INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
+                        if (err) {
+                            console.error('Error inserting booking:', err);
+                            reject(err);
+                        } else {
+                            console.log('Booking inserted successfully for date:', date);
+                            resolve(booking);
+                        }
+                    });
+                })
+            );
+
+            const bookings = await Promise.all(insertPromises);
+            const calendarLinks = bookings.map(booking => generateCalendarLinks(booking));
+            
+            console.log('Date range booking submitted successfully');
+            res.json({ 
+                success: true,
+                calendarLinks
+            });
+        } else {
+            // Single date booking
+            if (!eventDate) {
+                return res.status(400).json({ error: 'Event date is required for single date bookings' });
+            }
+
+            const booking = {
+                projectName,
+                bookedBy,
+                eventDate,
+                startTime,
+                endTime,
+                equipment,
+                dateSubmitted
+            };
+
+            db.run(`
+                INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
+                if (err) {
+                    console.error('Error submitting booking:', err);
+                    res.status(500).json({ error: 'Error submitting booking' });
+                } else {
+                    console.log('Booking submitted successfully');
+                    const calendarLinks = generateCalendarLinks(booking);
+                    res.json({ 
+                        success: true,
+                        calendarLinks
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error in booking submission:', error);
+        res.status(500).json({ error: 'Error submitting booking' });
     }
 });
 

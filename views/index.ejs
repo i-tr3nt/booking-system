@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THRU ZIM Events Booking</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <nav class="navbar">
@@ -132,6 +133,23 @@
             </form>
         </div>
 
+        <div id="calendarLinks" class="calendar-links" style="display: none;">
+            <h3>Add to Calendar</h3>
+            <div class="calendar-buttons">
+                <div class="calendar-event">
+                    <a href="#" class="calendar-btn google" target="_blank">
+                        <i class="fab fa-google"></i> Add to Google Calendar
+                    </a>
+                    <a href="#" class="calendar-btn outlook" target="_blank">
+                        <i class="fab fa-microsoft"></i> Add to Outlook
+                    </a>
+                    <button class="calendar-btn ical">
+                        <i class="fas fa-calendar-alt"></i> Download iCal
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="recent-bookings">
             <h2>Upcoming Events</h2>
             <% if (upcomingBookings && upcomingBookings.length > 0) { %>
@@ -151,6 +169,73 @@
             <% } %>
         </div>
     </div>
+
+    <style>
+        .calendar-links {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+        }
+
+        .calendar-links h3 {
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .calendar-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .calendar-event {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            text-decoration: none;
+            color: white;
+            font-size: 0.875rem;
+            transition: opacity 0.2s;
+        }
+
+        .calendar-btn:hover {
+            opacity: 0.9;
+        }
+
+        .calendar-btn.google {
+            background-color: #4285F4;
+        }
+
+        .calendar-btn.outlook {
+            background-color: #0078D4;
+        }
+
+        .calendar-btn.ical {
+            background-color: #2C3E50;
+            border: none;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-event {
+                flex-direction: column;
+            }
+
+            .calendar-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
 
     <script>
         // Check availability before submission
@@ -318,7 +403,6 @@
             const available = await checkAvailability();
             if (available) {
                 try {
-                    // Create a new FormData object
                     const formData = new FormData();
                     formData.append('projectName', document.getElementById('projectName').value);
                     formData.append('bookedBy', document.getElementById('bookedBy').value);
@@ -343,23 +427,37 @@
                         body: new URLSearchParams(formData)
                     });
                     
+                    const data = await response.json();
+                    
                     if (response.ok) {
                         // Show success message
                         const successMessage = document.createElement('div');
                         successMessage.className = 'message success';
                         successMessage.textContent = 'Booking submitted successfully!';
                         form.insertBefore(successMessage, form.firstChild);
+
+                        // Show calendar links
+                        const calendarLinksDiv = document.getElementById('calendarLinks');
+                        const calendarButtons = calendarLinksDiv.querySelector('.calendar-buttons');
+                        calendarButtons.innerHTML = data.calendarLinks.map(links => `
+                            <div class="calendar-event">
+                                <a href="${links.googleCalendarLink}" target="_blank" class="calendar-btn google">
+                                    <i class="fab fa-google"></i> Add to Google Calendar
+                                </a>
+                                <a href="${links.outlookCalendarLink}" target="_blank" class="calendar-btn outlook">
+                                    <i class="fab fa-microsoft"></i> Add to Outlook
+                                </a>
+                                <button onclick="downloadIcal('${links.icalData.replace(/'/g, "\\'")}')" class="calendar-btn ical">
+                                    <i class="fas fa-calendar-alt"></i> Download iCal
+                                </button>
+                            </div>
+                        `).join('');
+                        calendarLinksDiv.style.display = 'block';
                         
                         // Reset form
                         form.reset();
-                        
-                        // Reload the page after a short delay
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
                     } else {
-                        const errorData = await response.json();
-                        alert(errorData.error || 'Error submitting booking. Please try again.');
+                        alert(data.error || 'Error submitting booking. Please try again.');
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -367,6 +465,17 @@
                 }
             }
         });
+
+        // Function to download iCal file
+        function downloadIcal(icalData) {
+            const blob = new Blob([icalData], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'booking.ics';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
         // Auto-hide success/error messages after 5 seconds
         const messages = document.querySelectorAll('.message.success, .message.error');
