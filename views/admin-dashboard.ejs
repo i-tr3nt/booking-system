@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - THRU ZIM</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            color: white;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: opacity 0.2s;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+        }
+
+        .add-btn {
+            background-color: #10B981;
+        }
+
+        .edit-btn {
+            background-color: #3B82F6;
+        }
+
+        .delete-btn {
+            background-color: #EF4444;
+        }
+
+        .cancel-btn {
+            background-color: #F59E0B;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 2rem auto;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6B7280;
+        }
+
+        .modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.25rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--primary-color-dark);
+        }
+
+        .success-message {
+            color: #059669;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #dc2626;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h1 class="nav-title">THRU ZIM Admin</h1>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/events" class="nav-link">Events</a>
+                <a href="/admin" class="nav-link active">Admin</a>
+                <a href="/admin/logout" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="admin-header">
+            <h2>Admin Dashboard</h2>
+            <div class="admin-actions">
+                <button class="action-btn add-btn" onclick="openModal('add')">
+                    <i class="fas fa-plus"></i> Add Booking
+                </button>
+            </div>
+        </div>
+
+        <% if (success) { %>
+            <div class="success-message"><%= success %></div>
+        <% } %>
+        <% if (error) { %>
+            <div class="error-message"><%= error %></div>
+        <% } %>
+
+        <!-- Upcoming Events Section -->
+        <div class="events-section">
+            <h3>Upcoming Events</h3>
+            <div class="events-table-container">
+                <table class="events-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Booked By</th>
+                            <th>Event Date</th>
+                            <th>Time</th>
+                            <th>Equipment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% upcomingEvents.forEach(event => { %>
+                            <tr>
+                                <td><%= event.projectName %></td>
+                                <td><%= event.bookedBy %></td>
+                                <td><%= event.eventDate %></td>
+                                <td><%= event.startTime %> - <%= event.endTime %></td>
+                                <td><%= event.equipment %></td>
+                                <td>
+                                    <div class="admin-actions">
+                                        <button class="action-btn edit-btn" onclick="openModal('edit', <%= JSON.stringify(event) %>)">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <button class="action-btn cancel-btn" onclick="openModal('cancel', <%= JSON.stringify(event) %>)">
+                                            <i class="fas fa-ban"></i> Cancel
+                                        </button>
+                                        <button class="action-btn delete-btn" onclick="openModal('delete', <%= JSON.stringify(event) %>)">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Past Events Section -->
+        <div class="events-section">
+            <h3>Event History</h3>
+            <div class="events-table-container">
+                <table class="events-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Booked By</th>
+                            <th>Event Date</th>
+                            <th>Time</th>
+                            <th>Equipment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% pastEvents.forEach(event => { %>
+                            <tr>
+                                <td><%= event.projectName %></td>
+                                <td><%= event.bookedBy %></td>
+                                <td><%= event.eventDate %></td>
+                                <td><%= event.startTime %> - <%= event.endTime %></td>
+                                <td><%= event.equipment %></td>
+                                <td>
+                                    <div class="admin-actions">
+                                        <button class="action-btn delete-btn" onclick="openModal('delete', <%= JSON.stringify(event) %>)">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Add Booking</h3>
+            <form id="bookingForm" class="modal-form" action="/admin/bookings" method="POST">
+                <input type="hidden" id="bookingId" name="id">
+                <input type="hidden" id="action" name="action" value="add">
+                
+                <div class="form-group">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName" name="projectName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="bookedBy">Booked By</label>
+                    <input type="text" id="bookedBy" name="bookedBy" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="eventDate">Event Date</label>
+                    <input type="date" id="eventDate" name="eventDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="startTime">Start Time</label>
+                    <input type="time" id="startTime" name="startTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="endTime">End Time</label>
+                    <input type="time" id="endTime" name="endTime" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="equipment">Equipment</label>
+                    <select id="equipment" name="equipment" required>
+                        <option value="Meeting Room + Projector 1">Meeting Room + Projector 1</option>
+                        <option value="Meeting Room + Projector 2">Meeting Room + Projector 2</option>
+                        <option value="Study Room + Projector 1">Study Room + Projector 1</option>
+                        <option value="Study Room + Projector 2">Study Room + Projector 2</option>
+                        <option value="Gazebo + Projector 1">Gazebo + Projector 1</option>
+                        <option value="Gazebo + Projector 2">Gazebo + Projector 2</option>
+                        <option value="Zoom Video Conferencing">Zoom Video Conferencing</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="submit-btn">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete/Cancel Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 id="confirmTitle">Confirm Action</h3>
+            <p id="confirmMessage"></p>
+            <form id="confirmForm" class="modal-form" action="/admin/bookings" method="POST">
+                <input type="hidden" id="confirmId" name="id">
+                <input type="hidden" id="confirmAction" name="action">
+                <button type="submit" class="submit-btn">Confirm</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openModal(type, event = null) {
+            const bookingModal = document.getElementById('bookingModal');
+            const confirmModal = document.getElementById('confirmModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const confirmTitle = document.getElementById('confirmTitle');
+            const confirmMessage = document.getElementById('confirmMessage');
+            const bookingForm = document.getElementById('bookingForm');
+            const confirmForm = document.getElementById('confirmForm');
+            const actionInput = document.getElementById('action');
+            const confirmAction = document.getElementById('confirmAction');
+            const confirmId = document.getElementById('confirmId');
+
+            if (type === 'add' || type === 'edit') {
+                bookingModal.style.display = 'block';
+                confirmModal.style.display = 'none';
+                
+                if (type === 'add') {
+                    modalTitle.textContent = 'Add Booking';
+                    actionInput.value = 'add';
+                    bookingForm.reset();
+                } else {
+                    modalTitle.textContent = 'Edit Booking';
+                    actionInput.value = 'edit';
+                    document.getElementById('bookingId').value = event.id;
+                    document.getElementById('projectName').value = event.projectName;
+                    document.getElementById('bookedBy').value = event.bookedBy;
+                    document.getElementById('eventDate').value = event.eventDate.split('/').reverse().join('-');
+                    document.getElementById('startTime').value = event.startTime;
+                    document.getElementById('endTime').value = event.endTime;
+                    document.getElementById('equipment').value = event.equipment;
+                }
+            } else {
+                bookingModal.style.display = 'none';
+                confirmModal.style.display = 'block';
+                
+                if (type === 'delete') {
+                    confirmTitle.textContent = 'Delete Booking';
+                    confirmMessage.textContent = `Are you sure you want to delete the booking for "${event.projectName}"?`;
+                    confirmAction.value = 'delete';
+                } else {
+                    confirmTitle.textContent = 'Cancel Booking';
+                    confirmMessage.textContent = `Are you sure you want to cancel the booking for "${event.projectName}"?`;
+                    confirmAction.value = 'cancel';
+                }
+                confirmId.value = event.id;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('bookingModal').style.display = 'none';
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const bookingModal = document.getElementById('bookingModal');
+            const confirmModal = document.getElementById('confirmModal');
+            if (event.target === bookingModal || event.target === confirmModal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html> 

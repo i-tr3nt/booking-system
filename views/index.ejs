@@ -10,10 +10,14 @@
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <h1 class="nav-title">THRU ZIM Events Booking</h1>
+            <div class="nav-brand">
+                <img src="/images/logo.png" alt="THRU ZIM Logo" class="nav-logo">
+                <h1 class="nav-title">THRU ZIM</h1>
+            </div>
             <div class="nav-links">
                 <a href="/" class="nav-link active">Home</a>
                 <a href="/events" class="nav-link">Events</a>
+                <a href="/admin" class="nav-link">Admin</a>
             </div>
         </div>
     </nav>
@@ -233,6 +237,32 @@
             .calendar-btn {
                 width: 100%;
                 justify-content: center;
+            }
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-logo {
+            height: 40px;
+            width: auto;
+        }
+
+        .nav-title {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .nav-logo {
+                height: 30px;
+            }
+            
+            .nav-title {
+                font-size: 1.2rem;
             }
         }
     </style>

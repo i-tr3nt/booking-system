@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>THRU ZIM Booked Events</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <h1 class="nav-title">THRU ZIM Booked Events</h1>
+            <div class="nav-brand">
+                <img src="/images/logo.png" alt="THRU ZIM Logo" class="nav-logo">
+                <h1 class="nav-title">THRU ZIM Booked Events</h1>
+            </div>
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
                 <a href="/events" class="nav-link active">Events</a>
+                <a href="/admin" class="nav-link">Admin</a>
             </div>
         </div>
     </nav>
@@ -85,6 +90,7 @@
                             <th>Event Date</th>
                             <th>Time</th>
                             <th>Equipment</th>
+                            <th>Calendar</th>
                         </tr>
                     </thead>
                     <tbody id="upcomingEventsTableBody">
@@ -95,6 +101,18 @@
                                 <td><%= event.eventDate %></td>
                                 <td><%= event.startTime %> - <%= event.endTime %></td>
                                 <td><%= event.equipment %></td>
+                                <td>
+                                    <div class="calendar-buttons">
+                                        <div class="calendar-event">
+                                            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=<%= encodeURIComponent(event.projectName) %>&dates=<%= moment(event.eventDate, 'DD/MM/YYYY').format('YYYYMMDD') %>T<%= event.startTime.replace(':', '') %>00/<%= moment(event.eventDate, 'DD/MM/YYYY').format('YYYYMMDD') %>T<%= event.endTime.replace(':', '') %>00&details=<%= encodeURIComponent(`Project: ${event.projectName}\nBooked By: ${event.bookedBy}\nEquipment: ${event.equipment}`) %>" target="_blank" class="calendar-btn google">
+                                                <i class="fab fa-google"></i> Google
+                                            </a>
+                                            <a href="https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=<%= encodeURIComponent(event.projectName) %>&startdt=<%= moment(event.eventDate, 'DD/MM/YYYY').format('YYYYMMDD') %>T<%= event.startTime.replace(':', '') %>00&enddt=<%= moment(event.eventDate, 'DD/MM/YYYY').format('YYYYMMDD') %>T<%= event.endTime.replace(':', '') %>00&body=<%= encodeURIComponent(`Project: ${event.projectName}\nBooked By: ${event.bookedBy}\nEquipment: ${event.equipment}`) %>" target="_blank" class="calendar-btn outlook">
+                                                <i class="fab fa-microsoft"></i> Outlook
+                                            </a>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         <% }); %>
                     </tbody>
@@ -131,6 +149,81 @@
             </div>
         </div>
     </div>
+
+    <style>
+        .calendar-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .calendar-event {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            text-decoration: none;
+            color: white;
+            font-size: 0.875rem;
+            transition: opacity 0.2s;
+        }
+
+        .calendar-btn:hover {
+            opacity: 0.9;
+        }
+
+        .calendar-btn.google {
+            background-color: #4285F4;
+        }
+
+        .calendar-btn.outlook {
+            background-color: #0078D4;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-event {
+                flex-direction: column;
+            }
+
+            .calendar-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-logo {
+            height: 40px;
+            width: auto;
+        }
+
+        .nav-title {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .nav-logo {
+                height: 30px;
+            }
+            
+            .nav-title {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
 
     <script>
         const searchInput = document.getElementById('searchInput');
