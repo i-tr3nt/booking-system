@@ -38,17 +38,21 @@ const db = new sqlite3.Database('bookings.db', (err) => {
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.static('public'));
+
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'css')));
-app.use('/images', express.static(path.join(__dirname, 'images'), {
-    setHeaders: (res, path) => {
-        res.set('Content-Type', 'image/png');
-    }
-}));
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// Session configuration
 app.use(session({
     secret: 'thruzim-secret-key',
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: true,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 // Set view engine
@@ -59,52 +63,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.use((req, res, next) => {
     res.locals.moment = moment;
     next();
-});
-
-// Home route
-app.get('/', (req, res) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-
-    // Get upcoming events for the home page
-    db.all(`SELECT * FROM bookings WHERE date(eventDate) >= date(?) ORDER BY eventDate, startTime LIMIT 3`, [todayStr], (err, upcomingBookings) => {
-        if (err) {
-            console.error('Error fetching upcoming bookings:', err);
-            upcomingBookings = [];
-        }
-
-        res.render('index', {
-            showMessage: false,
-            success: null,
-            upcomingBookings
-        });
-    });
-});
-
-// Events route
-app.get('/events', (req, res) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-
-    // Get upcoming events
-    db.all(`SELECT * FROM bookings WHERE date(eventDate) >= date(?) ORDER BY eventDate, startTime`, [todayStr], (err, upcomingEvents) => {
-        if (err) {
-            console.error('Error fetching upcoming events:', err);
-            upcomingEvents = [];
-        }
-
-        // Get past events
-        db.all(`SELECT * FROM bookings WHERE date(eventDate) < date(?) ORDER BY eventDate DESC, startTime`, [todayStr], (err, pastEvents) => {
-            if (err) {
-                console.error('Error fetching past events:', err);
-                pastEvents = [];
-            }
-
-            res.render('events', { upcomingEvents, pastEvents });
-        });
-    });
 });
 
 // Admin authentication middleware
@@ -239,6 +197,52 @@ app.post('/admin/bookings', isAdmin, (req, res) => {
     } catch (error) {
         res.redirect('/admin?error=An error occurred');
     }
+});
+
+// Home route
+app.get('/', (req, res) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Get upcoming events for the home page
+    db.all(`SELECT * FROM bookings WHERE date(eventDate) >= date(?) ORDER BY eventDate, startTime LIMIT 3`, [todayStr], (err, upcomingBookings) => {
+        if (err) {
+            console.error('Error fetching upcoming bookings:', err);
+            upcomingBookings = [];
+        }
+
+        res.render('index', {
+            showMessage: false,
+            success: null,
+            upcomingBookings
+        });
+    });
+});
+
+// Events route
+app.get('/events', (req, res) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Get upcoming events
+    db.all(`SELECT * FROM bookings WHERE date(eventDate) >= date(?) ORDER BY eventDate, startTime`, [todayStr], (err, upcomingEvents) => {
+        if (err) {
+            console.error('Error fetching upcoming events:', err);
+            upcomingEvents = [];
+        }
+
+        // Get past events
+        db.all(`SELECT * FROM bookings WHERE date(eventDate) < date(?) ORDER BY eventDate DESC, startTime`, [todayStr], (err, pastEvents) => {
+            if (err) {
+                console.error('Error fetching past events:', err);
+                pastEvents = [];
+            }
+
+            res.render('events', { upcomingEvents, pastEvents });
+        });
+    });
 });
 
 // Start server
