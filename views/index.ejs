@@ -111,7 +111,19 @@
                             </label>
                         </div>
                         <div class="equipment-group">
-                            <h4>Equipment</h4>
+                            <h4>Audio Equipment</h4>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="2 Wireless Mic Set"> 2 Wireless Mic Set
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="4 Wireless Mic Set"> 4 Wireless Mic Set
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="PA System"> PA System
+                            </label>
+                        </div>
+                        <div class="equipment-group">
+                            <h4>Projectors</h4>
                             <label class="checkbox-label">
                                 <input type="checkbox" name="equipment" value="Projector 1"> Projector 1
                             </label>
@@ -127,6 +139,42 @@
                             <label class="checkbox-label">
                                 <input type="checkbox" name="equipment" value="Zoom Video Conferencing"> Zoom Video Conferencing
                             </label>
+                        </div>
+                        <div class="equipment-group">
+                            <h4>Vehicles</h4>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="SILVER HONDA VEZEL AFY 6842"> SILVER HONDA VEZEL AFY 6842
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="WHITE HONDA FIT AFT 5672"> WHITE HONDA FIT AFT 5672
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="BLACK HONDA FIT AFT 8608"> BLACK HONDA FIT AFT 8608
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="SILVER HONDA FIT AFB 3293"> SILVER HONDA FIT AFB 3293
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="TOYOTA HILUX AFX 5650"> TOYOTA HILUX AFX 5650
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="BLACK HONDA FIT AFT 5131"> BLACK HONDA FIT AFT 5131
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="NISSAN KOMBI AFV 1122"> NISSAN KOMBI AFV 1122
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="KOMBI H/RF AEY 8397"> KOMBI H/RF AEY 8397
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="equipment" value="WHITE HONDA VEZEL AGY 7776"> WHITE HONDA VEZEL AGY 7776
+                            </label>
+                            <div class="checkbox-label disabled-vehicle">
+                                NISSAN NV200 AGO 8493
+                            </div>
+                            <div class="checkbox-label disabled-vehicle">
+                                NISSAN NV200 AGX 1145
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -254,6 +302,16 @@
         .nav-title {
             margin: 0;
             font-size: 1.5rem;
+        }
+
+        .disabled-vehicle {
+            opacity: 0.5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .disabled-vehicle input[type="checkbox"] {
+            cursor: not-allowed;
         }
 
         @media (max-width: 768px) {
@@ -522,10 +580,20 @@
                     .filter(cb => ['Meeting Room', 'Study Room', 'Gazebo'].includes(cb.value))
                     .map(cb => cb.value);
 
+                const selectedVehicles = Array.from(document.querySelectorAll('input[name="equipment"]:checked'))
+                    .filter(cb => cb.value.includes('HONDA') || cb.value.includes('TOYOTA') || cb.value.includes('NISSAN') || cb.value.includes('KOMBI'))
+                    .map(cb => cb.value);
+
                 if (selectedRooms.length > 1) {
                     // If trying to select multiple rooms, uncheck the current selection
                     this.checked = false;
                     alert('You can only select one room at a time (Meeting Room, Study Room, or Gazebo).');
+                }
+
+                if (selectedVehicles.length > 1) {
+                    // If trying to select multiple vehicles, uncheck the current selection
+                    this.checked = false;
+                    alert('You can only select one vehicle at a time.');
                 }
             });
         });

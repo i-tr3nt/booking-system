@@ -253,7 +253,8 @@ app.get('/admin', isAdmin, (req, res) => {
                                 'Projector': { total: 2, available: 2 },
                                 'Study Room': { total: 1, available: 1 },
                                 'Gazebo': { total: 1, available: 1 },
-                                'Zoom Video Conferencing': { total: 1, available: 1 }
+                                'Zoom Video Conferencing': { total: 1, available: 1 },
+                                'Vehicles': { total: 9, available: 9 }
                             };
 
                             let adminName = 'Admin';

@@ -178,12 +178,17 @@ app.get('/events', (req, res) => {
 
             res.render('events', {
                 upcomingEvents: formatEvents(upcomingRows),
-                pastEvents: formatEvents(pastRows)
+                pastEvents: formatEvents(pastRows),
+                moment: moment
             });
         })
         .catch(err => {
             console.error('Error fetching events:', err);
-            res.render('events', { upcomingEvents: [], pastEvents: [] });
+            res.render('events', { 
+                upcomingEvents: [], 
+                pastEvents: [],
+                moment: moment
+            });
         });
 });
 
@@ -379,7 +384,38 @@ app.post('/submit-booking', async (req, res) => {
             );
 
             const bookings = await Promise.all(insertPromises);
-            const calendarLinks = bookings.map(booking => generateCalendarLinks(booking));
+            const calendarLinks = bookings.map(booking => {
+                const startDateTime = moment(`${booking.eventDate}T${booking.startTime}`).format('YYYYMMDDTHHmmss');
+                const endDateTime = moment(`${booking.eventDate}T${booking.endTime}`).format('YYYYMMDDTHHmmss');
+                
+                // Format description with booking details
+                const description = `Project: ${booking.projectName}\nBooked By: ${booking.bookedBy}\nEquipment: ${booking.equipment}`;
+                
+                // Google Calendar link
+                const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(booking.projectName)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description)}`;
+                
+                // Outlook Calendar link
+                const outlookCalendarLink = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(booking.projectName)}&startdt=${startDateTime}&enddt=${endDateTime}&body=${encodeURIComponent(description)}`;
+                
+                // iCal format
+                const icalData = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'BEGIN:VEVENT',
+                    `DTSTART:${startDateTime}`,
+                    `DTEND:${endDateTime}`,
+                    `SUMMARY:${booking.projectName}`,
+                    `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                    'END:VEVENT',
+                    'END:VCALENDAR'
+                ].join('\r\n');
+
+                return {
+                    googleCalendarLink,
+                    outlookCalendarLink,
+                    icalData
+                };
+            });
             
             console.log('Date range booking submitted successfully');
             res.json({ 
@@ -411,7 +447,35 @@ app.post('/submit-booking', async (req, res) => {
                     res.status(500).json({ error: 'Error submitting booking' });
                 } else {
                     console.log('Booking submitted successfully');
-                    const calendarLinks = generateCalendarLinks(booking);
+                    
+                    // Generate calendar links for single booking
+                    const startDateTime = moment(`${eventDate}T${startTime}`).format('YYYYMMDDTHHmmss');
+                    const endDateTime = moment(`${eventDate}T${endTime}`).format('YYYYMMDDTHHmmss');
+                    
+                    const description = `Project: ${projectName}\nBooked By: ${bookedBy}\nEquipment: ${equipment}`;
+                    
+                    const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(projectName)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description)}`;
+                    
+                    const outlookCalendarLink = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(projectName)}&startdt=${startDateTime}&enddt=${endDateTime}&body=${encodeURIComponent(description)}`;
+                    
+                    const icalData = [
+                        'BEGIN:VCALENDAR',
+                        'VERSION:2.0',
+                        'BEGIN:VEVENT',
+                        `DTSTART:${startDateTime}`,
+                        `DTEND:${endDateTime}`,
+                        `SUMMARY:${projectName}`,
+                        `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                        'END:VEVENT',
+                        'END:VCALENDAR'
+                    ].join('\r\n');
+
+                    const calendarLinks = [{
+                        googleCalendarLink,
+                        outlookCalendarLink,
+                        icalData
+                    }];
+
                     res.json({ 
                         success: true,
                         calendarLinks
@@ -463,7 +527,31 @@ app.get('/check-availability', (req, res) => {
             );
         });
 
-        if (hasConflict) {
+        // Special handling for vehicles - check if any vehicle is already booked
+        const vehicleNames = [
+            'SILVER HONDA VEZEL AFY 6842',
+            'WHITE HONDA FIT AFT 5672',
+            'BLACK HONDA FIT AFT 8608',
+            'SILVER HONDA FIT AFB 3293',
+            'TOYOTA HILUX AFX 5650',
+            'BLACK HONDA FIT AFT 5131',
+            'NISSAN KOMBI AFV 1122',
+            'KOMBI H/RF AEY 8397',
+            'WHITE HONDA VEZEL AGY 7776'
+        ];
+
+        // Check if any requested vehicle is already booked
+        const vehicleConflict = requestedEquipment.some(requested => {
+            if (vehicleNames.includes(requested)) {
+                return bookedEquipment.some(booked => {
+                    const bookedItems = booked.split(' + ');
+                    return bookedItems.includes(requested);
+                });
+            }
+            return false;
+        });
+
+        if (hasConflict || vehicleConflict) {
             res.json({ available: false });
         } else {
             res.json({ available: true });
