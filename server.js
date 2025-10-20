@@ -5,9 +5,49 @@ const moment = require('moment');
 const fs = require('fs');
 const session = require('express-session');
 const sqlite3 = require('sqlite3').verbose();
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Email configuration
+const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+    }
+});
+
+// Function to send booking notification email
+async function sendBookingNotification(booking) {
+    const emailTemplate = `
+        <h2>New Booking Notification</h2>
+        <p>A new booking has been made with the following details:</p>
+        <ul>
+            <li><strong>Project Name:</strong> ${booking.projectName}</li>
+            <li><strong>Booked By:</strong> ${booking.bookedBy}</li>
+            <li><strong>Event Date:</strong> ${moment(booking.eventDate).format('DD/MM/YYYY')}</li>
+            <li><strong>Time:</strong> ${moment(booking.startTime, 'HH:mm').format('HH:mm')} - ${moment(booking.endTime, 'HH:mm').format('HH:mm')}</li>
+            <li><strong>Equipment:</strong> ${booking.equipment}</li>
+        </ul>
+        <p>This booking was submitted on ${moment(booking.dateSubmitted).format('DD/MM/YYYY [at] HH:mm')}</p>
+    `;
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER || 'your-email@gmail.com',
+        to: process.env.NOTIFICATION_EMAIL || 'takudzatrenttaderera@gmail.com',
+        subject: `New Equipment Booking: ${booking.projectName}`,
+        html: emailTemplate
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Booking notification email sent successfully');
+    } catch (error) {
+        console.error('Error sending booking notification email:', error);
+    }
+}
 
 // Database connection
 const db = new sqlite3.Database('bookings.db', (err) => {
@@ -597,6 +637,8 @@ app.post('/submit-booking', async (req, res) => {
                         reject(err);
                     } else {
                         console.log('Booking inserted successfully for date:', date);
+                        // Send email notification
+                        sendBookingNotification(booking);
                         resolve(booking);
                     }
                 });
@@ -638,6 +680,12 @@ app.post('/submit-booking', async (req, res) => {
                     console.error('Error submitting booking:', err);
                     res.status(500).json({ error: 'Error submitting booking' });
                 } else {
+                    console.log('Single booking submitted successfully');
+                    
+                    // Send email notification
+                    const booking = { projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted };
+                    sendBookingNotification(booking);
+                    
                     const startDateTime = moment(`${eventDate}T${startTime}`).format('YYYYMMDDTHHmmss');
                     const endDateTime = moment(`${eventDate}T${endTime}`).format('YYYYMMDDTHHmmss');
                     const description = `Project: ${projectName}\nBooked By: ${bookedBy}\nEquipment: ${equipment}`;
