@@ -558,6 +558,174 @@ app.get('/events', (req, res) => {
     });
 });
 
+// Booking submission route (migrated from app.js)
+app.post('/submit-booking', async (req, res) => {
+    console.log('Received booking data:', req.body);
+
+    const { projectName, bookedBy, eventDate, startDate, endDate, startTime, endTime, equipment, bookingType } = req.body;
+
+    if (!projectName || !bookedBy || !startTime || !endTime || !equipment) {
+        console.error('Missing required fields:', { projectName, bookedBy, startTime, endTime, equipment });
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const dateSubmitted = moment().format('YYYY-MM-DD HH:mm:ss');
+
+    try {
+        if (bookingType === 'range') {
+            if (!startDate || !endDate) {
+                return res.status(400).json({ error: 'Start and end dates are required for range bookings' });
+            }
+
+            const dates = [];
+            const currentDate = new Date(startDate);
+            const lastDate = new Date(endDate);
+            while (currentDate <= lastDate) {
+                dates.push(currentDate.toISOString().split('T')[0]);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            const insertPromises = dates.map(date => new Promise((resolve, reject) => {
+                const booking = { projectName, bookedBy, eventDate: date, startTime, endTime, equipment, dateSubmitted };
+
+                db.run(`
+                    INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [projectName, bookedBy, date, startTime, endTime, equipment, dateSubmitted], (err) => {
+                    if (err) {
+                        console.error('Error inserting booking:', err);
+                        reject(err);
+                    } else {
+                        console.log('Booking inserted successfully for date:', date);
+                        resolve(booking);
+                    }
+                });
+            }));
+
+            const bookings = await Promise.all(insertPromises);
+            const calendarLinks = bookings.map(booking => {
+                const startDateTime = moment(`${booking.eventDate}T${booking.startTime}`).format('YYYYMMDDTHHmmss');
+                const endDateTime = moment(`${booking.eventDate}T${booking.endTime}`).format('YYYYMMDDTHHmmss');
+                const description = `Project: ${booking.projectName}\nBooked By: ${booking.bookedBy}\nEquipment: ${booking.equipment}`;
+                const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(booking.projectName)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description)}`;
+                const outlookCalendarLink = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(booking.projectName)}&startdt=${startDateTime}&enddt=${endDateTime}&body=${encodeURIComponent(description)}`;
+                const icalData = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'BEGIN:VEVENT',
+                    `DTSTART:${startDateTime}`,
+                    `DTEND:${endDateTime}`,
+                    `SUMMARY:${booking.projectName}`,
+                    `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                    'END:VEVENT',
+                    'END:VCALENDAR'
+                ].join('\r\n');
+                return { googleCalendarLink, outlookCalendarLink, icalData };
+            });
+
+            console.log('Date range booking submitted successfully');
+            res.json({ success: true, calendarLinks });
+        } else {
+            if (!eventDate) {
+                return res.status(400).json({ error: 'Event date is required for single date bookings' });
+            }
+
+            db.run(`
+                INSERT INTO bookings (projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [projectName, bookedBy, eventDate, startTime, endTime, equipment, dateSubmitted], (err) => {
+                if (err) {
+                    console.error('Error submitting booking:', err);
+                    res.status(500).json({ error: 'Error submitting booking' });
+                } else {
+                    const startDateTime = moment(`${eventDate}T${startTime}`).format('YYYYMMDDTHHmmss');
+                    const endDateTime = moment(`${eventDate}T${endTime}`).format('YYYYMMDDTHHmmss');
+                    const description = `Project: ${projectName}\nBooked By: ${bookedBy}\nEquipment: ${equipment}`;
+                    const googleCalendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(projectName)}&dates=${startDateTime}/${endDateTime}&details=${encodeURIComponent(description)}`;
+                    const outlookCalendarLink = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(projectName)}&startdt=${startDateTime}&enddt=${endDateTime}&body=${encodeURIComponent(description)}`;
+                    const icalData = [
+                        'BEGIN:VCALENDAR',
+                        'VERSION:2.0',
+                        'BEGIN:VEVENT',
+                        `DTSTART:${startDateTime}`,
+                        `DTEND:${endDateTime}`,
+                        `SUMMARY:${projectName}`,
+                        `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                        'END:VEVENT',
+                        'END:VCALENDAR'
+                    ].join('\r\n');
+
+                    res.json({ success: true, calendarLinks: [{ googleCalendarLink, outlookCalendarLink, icalData }] });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error in booking submission:', error);
+        res.status(500).json({ error: 'Error submitting booking' });
+    }
+});
+
+// Availability check (migrated from app.js)
+app.get('/check-availability', (req, res) => {
+    const { eventDate, startTime, endTime, equipment } = req.query;
+
+    db.all(`
+        SELECT * FROM bookings 
+        WHERE eventDate = ? 
+        AND (
+            (startTime <= ? AND endTime > ?) OR
+            (startTime < ? AND endTime >= ?) OR
+            (startTime >= ? AND endTime <= ?)
+        )
+    `, [eventDate, startTime, startTime, endTime, endTime, startTime, endTime], 
+    (err, rows) => {
+        if (err) {
+            res.json({ error: 'Error checking availability' });
+            return;
+        }
+
+        if (rows.length === 0) {
+            res.json({ available: true });
+            return;
+        }
+
+        const bookedEquipment = rows.map(row => row.equipment);
+        const requestedEquipment = equipment.split(' + ');
+
+        const hasConflict = bookedEquipment.some(booked => {
+            const bookedItems = booked.split(' + ');
+            return requestedEquipment.some(requested => bookedItems.some(item => item === requested));
+        });
+
+        const vehicleNames = [
+            'SILVER HONDA VEZEL AFY 6842',
+            'WHITE HONDA FIT AFT 5672',
+            'BLACK HONDA FIT AFT 8608',
+            'SILVER HONDA FIT AFB 3293',
+            'TOYOTA HILUX AFX 5650',
+            'BLACK HONDA FIT AFT 5131',
+            'NISSAN KOMBI AFV 1122',
+            'KOMBI H/RF AEY 8397',
+            'WHITE HONDA VEZEL AGY 7776',
+            'NISSAN NV200 AGO 8493',
+            'NISSAN NV200 AGX 1145'
+        ];
+
+        const vehicleConflict = requestedEquipment.some(requested => {
+            if (vehicleNames.includes(requested)) {
+                return bookedEquipment.some(booked => booked.split(' + ').includes(requested));
+            }
+            return false;
+        });
+
+        if (hasConflict || vehicleConflict) {
+            res.json({ available: false });
+        } else {
+            res.json({ available: true });
+        }
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
