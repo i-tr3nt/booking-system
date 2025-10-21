@@ -11,16 +11,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Email configuration
-const transporter = nodemailer.createTransporter({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
-    }
-});
+let transporter;
+try {
+    transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER || 'your-email@gmail.com',
+            pass: process.env.EMAIL_PASS || 'your-app-password'
+        }
+    });
+    console.log('Email transporter configured successfully');
+} catch (error) {
+    console.error('Error configuring email transporter:', error);
+    transporter = null;
+}
 
 // Function to send booking notification email
 async function sendBookingNotification(booking) {
+    if (!transporter) {
+        console.log('Email transporter not available, skipping email notification');
+        return;
+    }
+
     const emailTemplate = `
         <h2>New Booking Notification</h2>
         <p>A new booking has been made with the following details:</p>
