@@ -467,6 +467,161 @@
         .notification.error {
             background-color: #f44336;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .admin-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .admin-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .dashboard-nav {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .dashboard-nav-item {
+                text-align: center;
+                padding: 1rem;
+            }
+            
+            .inventory-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .inventory-stats {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+            
+            .quick-actions-panel {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            
+            .quick-action-card {
+                padding: 1rem;
+            }
+            
+            .quick-action-card i {
+                font-size: 1.5rem;
+            }
+            
+            .activity-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            
+            .activity-icon {
+                align-self: center;
+            }
+            
+            .activity-meta {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .search-filter-section {
+                padding: 0.75rem;
+            }
+            
+            .search-box {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .search-btn {
+                width: 100%;
+            }
+            
+            .filter-options {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .filter-options select {
+                width: 100%;
+            }
+            
+            .clear-filters-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 1rem auto;
+                padding: 1.5rem;
+                max-height: 95vh;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .events-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .events-table {
+                min-width: 600px;
+            }
+            
+            .events-table th,
+            .events-table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.875rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .quick-actions-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .inventory-card {
+                padding: 1rem;
+            }
+            
+            .stat-item {
+                padding: 0.75rem;
+            }
+            
+            .stat-value {
+                font-size: 1.25rem;
+            }
+            
+            .modal-content {
+                width: 98%;
+                margin: 0.5rem auto;
+                padding: 1rem;
+            }
+            
+            .action-btn {
+                font-size: 0.8rem;
+                padding: 0.5rem 0.75rem;
+            }
+            
+            .events-table th,
+            .events-table td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
